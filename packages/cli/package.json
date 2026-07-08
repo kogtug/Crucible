@@ -1,0 +1,18 @@
+{
+  "name": "@crucible/cli",
+  "version": "0.1.0",
+  "description": "Command-line interface for Crucible: `crucible scan -- <command to launch the target MCP server>`.",
+  "type": "module",
+  "bin": {
+    "crucible": "dist/index.js"
+  },
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "dependencies": {
+    "@crucible/conformance": "*",
+    "@crucible/core": "*",
+    "commander": "^12.0.0"
+  }
+}
