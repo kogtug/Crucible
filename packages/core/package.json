@@ -1,0 +1,15 @@
+{
+  "name": "@crucible/core",
+  "version": "0.1.0",
+  "description": "Low-level MCP connection harness used by Crucible's conformance and chaos engines.",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "zod": "^3.25.0"
+  }
+}
