@@ -1,0 +1,24 @@
+{
+  "name": "crucible-monorepo",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Crucible: a conformance and resilience testing harness for the Model Context Protocol (MCP).",
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "packages/fixtures/*"
+  ],
+  "scripts": {
+    "clean": "rm -rf packages/*/dist packages/*/*/dist packages/*/*.tsbuildinfo packages/*/*/*.tsbuildinfo",
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm run build && node --test packages/*/dist/*.test.js",
+    "scan:basic": "npm run build && node packages/cli/dist/index.js scan -- node packages/fixtures/basic-server/dist/index.js"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT"
+}
