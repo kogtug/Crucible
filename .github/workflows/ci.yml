@@ -22,5 +22,5 @@ jobs:
       - name: Run test suite
         run: npm test
 
-      - name: Smoke-test the CLI against the reference fixture server
-        run: npm run scan:basic
+      - name: Smoke-test the CLI against both reference fixtures
+        run: npm run scan:basic && npm run scan:stateless
