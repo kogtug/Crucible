@@ -12,6 +12,7 @@
     "@crucible/core": "*"
   },
   "devDependencies": {
-    "@crucible/fixture-basic-server": "*"
+    "@crucible/fixture-basic-server": "*",
+    "@crucible/fixture-stateless-server": "*"
   }
 }
