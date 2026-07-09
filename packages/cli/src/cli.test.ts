@@ -1,0 +1,65 @@
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
+
+const execFileAsync = promisify(execFile);
+const here = path.dirname(fileURLToPath(import.meta.url));
+const cliEntry = path.resolve(here, "index.js");
+const legacyServerEntry = path.resolve(here, "../../fixtures/basic-server/dist/index.js");
+const statelessServerEntry = path.resolve(here, "../../fixtures/stateless-server/dist/index.js");
+
+interface CliRunResult {
+  stdout: string;
+  exitCode: number;
+}
+
+async function runCli(args: string[]): Promise<CliRunResult> {
+  try {
+    const { stdout } = await execFileAsync("node", [cliEntry, ...args]);
+    return { stdout, exitCode: 0 };
+  } catch (err) {
+    const failure = err as { stdout?: string; code?: number };
+    return { stdout: failure.stdout ?? "", exitCode: failure.code ?? 1 };
+  }
+}
+
+test("crucible scan detects the legacy fixture, passes, and exits 0", async () => {
+  const { stdout, exitCode } = await runCli(["scan", "--format", "json", "--", "node", legacyServerEntry]);
+  const report = JSON.parse(stdout);
+  assert.equal(report.era, "legacy");
+  assert.equal(report.summary.fail, 0);
+  assert.equal(exitCode, 0);
+});
+
+test("crucible scan detects the modern fixture, passes, and exits 0", async () => {
+  const { stdout, exitCode } = await runCli(["scan", "--format", "json", "--", "node", statelessServerEntry]);
+  const report = JSON.parse(stdout);
+  assert.equal(report.era, "modern");
+  assert.equal(report.summary.fail, 0);
+  assert.equal(exitCode, 0);
+});
+
+test("crucible scan exits 1 and reports failures for a broken modern fixture", async () => {
+  const { stdout, exitCode } = await runCli([
+    "scan",
+    "--format",
+    "json",
+    "--",
+    "env",
+    "CRUCIBLE_BREAK=negative-ttl",
+    "node",
+    statelessServerEntry,
+  ]);
+  const report = JSON.parse(stdout);
+  assert.equal(report.era, "modern");
+  assert.ok(report.summary.fail > 0, "expected at least one failing check");
+  assert.equal(exitCode, 1);
+});
+
+test("crucible scan rejects an unknown --format value with exit code 2", async () => {
+  const { exitCode } = await runCli(["scan", "--format", "xml", "--", "node", legacyServerEntry]);
+  assert.equal(exitCode, 2);
+});

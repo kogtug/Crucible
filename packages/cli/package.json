@@ -14,5 +14,9 @@
     "@crucible/conformance": "*",
     "@crucible/core": "*",
     "commander": "^12.0.0"
+  },
+  "devDependencies": {
+    "@crucible/fixture-basic-server": "*",
+    "@crucible/fixture-stateless-server": "*"
   }
 }
