@@ -11,8 +11,9 @@
   "scripts": {
     "clean": "rm -rf packages/*/dist packages/*/*/dist packages/*/*.tsbuildinfo packages/*/*/*.tsbuildinfo",
     "build": "npm run build --workspaces --if-present",
-    "test": "npm run build && node --test packages/*/dist/*.test.js",
-    "scan:basic": "npm run build && node packages/cli/dist/index.js scan -- node packages/fixtures/basic-server/dist/index.js"
+    "test": "npm run build && node --test packages/*/dist/*.test.js packages/*/dist/*/*.test.js",
+    "scan:basic": "npm run build && node packages/cli/dist/index.js scan -- node packages/fixtures/basic-server/dist/index.js",
+    "scan:stateless": "npm run build && node packages/cli/dist/index.js scan -- node packages/fixtures/stateless-server/dist/index.js"
   },
   "devDependencies": {
     "@types/node": "^22.0.0"

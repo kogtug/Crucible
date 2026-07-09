@@ -1,0 +1,11 @@
+{
+  "name": "@crucible/fixture-stateless-server",
+  "version": "0.1.0",
+  "description": "A hand-rolled MCP server implementing the draft 2026-07-28 discover-based, stateless protocol era - deliberately NOT built on the official SDK, which doesn't know about this era yet. Supports CRUCIBLE_BREAK=<mode> to simulate specific new-spec violations for regression testing.",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc -b",
+    "start": "node dist/index.js"
+  }
+}
