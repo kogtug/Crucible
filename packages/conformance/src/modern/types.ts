@@ -1,4 +1,4 @@
-import type { RawJsonRpcClient } from "@crucible/core";
+import type { RawJsonRpcClient, Runnable } from "@crucible/core";
 import type { CheckResult } from "../types.js";
 
 export interface ModernCheckContext {
@@ -9,9 +9,4 @@ export interface ModernCheckContext {
   discoverResult: Record<string, unknown>;
 }
 
-export interface ModernCheck {
-  id: string;
-  title: string;
-  specRef?: string;
-  run(ctx: ModernCheckContext): Promise<CheckResult>;
-}
+export type ModernCheck = Runnable<ModernCheckContext, CheckResult>;

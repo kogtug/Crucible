@@ -10,3 +10,5 @@ export type {
 } from "./rawClient.js";
 export { probeServerEra, protocolVersionAtLeast } from "./probe.js";
 export type { ProbeOutcome } from "./probe.js";
+export { runEngine } from "./runEngine.js";
+export type { Runnable } from "./runEngine.js";
