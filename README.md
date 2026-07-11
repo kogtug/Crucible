@@ -3,8 +3,8 @@
 **A conformance and resilience testing harness for the Model Context Protocol (MCP).**
 
 Crucible connects to an MCP server, runs it through a battery of spec-referenced
-conformance checks, and (from Phase 3 onward) deliberately injects protocol-level
-faults to see whether clients degrade safely or fail silently. Think of it as
+conformance checks, and deliberately injects protocol-level faults to see
+whether the server degrades safely or fails silently. Think of it as
 `npm audit` crossed with chaos engineering, aimed specifically at the MCP wire
 protocol rather than at malicious tool content.
 
@@ -55,10 +55,19 @@ that term doesn't exist in it - the real mechanism is a JSON-RPC method,
 - [ ] `io.modelcontextprotocol/tasks` extension conformance — deferred
 - [ ] MRTR (`input_required`) round-trip conformance — accepted as valid, not yet exercised end to end
 
+**Phase 3 — chaos/resilience engine (stdio, 2 scenarios)**
+- [x] `@crucible/chaos` — four-tier verdict system (resilient/degraded/hung/crashed)
+- [x] `malformedJsonResilience`, `unknownMethodResilience`, both era-agnostic
+- [x] `RawJsonRpcClient` extended with raw writes, unmatched-response handling, and liveness tracking
+- [x] `fixture-stateless-server` grew 3 chaos-specific `CRUCIBLE_BREAK` modes so all
+      four verdicts have a real, end-to-end positive case, not just "resilient"
+- [x] CLI: `crucible chaos -- <command>`, era-agnostic, `--format json` supported
+- [x] A real finding, rigorously verified before being stated as one: see [`FINDINGS.md`](./FINDINGS.md)
+- [x] 29 tests total
+
 **Later phases**
-- [ ] Phase 3: chaos/fault-injection engine + client resilience scoring (this is where
-      Streamable HTTP and the Tasks extension are planned to land, alongside fault injection)
-- [ ] Phase 4: LLM-assisted adversarial test-case generation
+- [ ] Phase 4: LLM-assisted adversarial test-case generation; Streamable HTTP transport;
+      `io.modelcontextprotocol/tasks` extension conformance (deferred from Phase 2, see `docs/architecture.md`)
 - [ ] Phase 5: report dashboard + shareable badge
 - [ ] Phase 6: GitHub Action, SARIF export, case studies against real open-source
       MCP servers (with permission)
@@ -70,7 +79,8 @@ npm install
 npm run build
 npm run scan:basic       # legacy (initialize-based) fixture
 npm run scan:stateless   # modern (draft 2026-07-28, discover-based) fixture
-npm test                 # 18 tests: unit + real end-to-end integration, both eras
+node packages/cli/dist/index.js chaos -- node packages/fixtures/stateless-server/dist/index.js
+npm test                 # 29 tests: unit + real end-to-end integration, all eras and scenarios
 ```
 
 Try breaking the modern fixture on purpose, and watch Crucible catch it:
@@ -89,13 +99,16 @@ packages/
                         RawJsonRpcClient + probeServerEra (hand-rolled)
   conformance/         spec-referenced checks + the engines that run them
                         (legacy checks in checks/, modern checks in modern/)
-  cli/                 `crucible` command-line tool
+  chaos/               fault-injection scenarios + four-tier resilience scoring
+  cli/                 `crucible` command-line tool (scan, chaos)
   fixtures/
     basic-server/       well-behaved legacy (SDK-based) reference server
     stateless-server/   well-behaved modern (hand-rolled) reference server,
                          with CRUCIBLE_BREAK modes for regression testing
 docs/
   architecture.md       design decisions, including the two-protocol-era split
+                         and the chaos engine's verdict system
+FINDINGS.md             primary-source-verified conformance/robustness findings
 ```
 
 ## License

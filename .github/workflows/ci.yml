@@ -24,3 +24,14 @@ jobs:
 
       - name: Smoke-test the CLI against both reference fixtures
         run: npm run scan:basic && npm run scan:stateless
+
+      - name: Smoke-test the chaos engine against the modern fixture (gating)
+        run: node packages/cli/dist/index.js chaos -- node packages/fixtures/stateless-server/dist/index.js
+
+      - name: Smoke-test the chaos engine against the legacy fixture (tracking only, see FINDINGS.md)
+        # Exits 1 by design: this fixture is built on @modelcontextprotocol/sdk,
+        # which has a documented (not spec-mandated) robustness gap around
+        # malformed input - see FINDINGS.md. Kept non-gating so CI doesn't
+        # need editing every time the finding is re-confirmed; the run itself
+        # still executes and its output is visible in the log.
+        run: node packages/cli/dist/index.js chaos -- node packages/fixtures/basic-server/dist/index.js || true
