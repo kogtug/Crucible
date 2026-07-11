@@ -1,0 +1,17 @@
+{
+  "name": "@crucible/chaos",
+  "version": "0.1.0",
+  "description": "Fault-injection scenarios that send deliberately adversarial input to a target MCP server and score how gracefully it degrades.",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "dependencies": {
+    "@crucible/core": "*"
+  },
+  "devDependencies": {
+    "@crucible/fixture-stateless-server": "*"
+  }
+}
