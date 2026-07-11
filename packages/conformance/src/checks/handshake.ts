@@ -11,8 +11,8 @@ import type { Check, CheckResult } from "../types.js";
  * conformance passed. What this check does NOT catch: servers that violate
  * the *new* 2026-07-28 stateless-transport header requirements (Mcp-Method /
  * Mcp-Name), which live below the SDK's abstraction and require talking raw
- * JSON-RPC over Streamable HTTP. That is deliberately out of scope for
- * Phase 1 - see Phase 2 in docs/architecture.md.
+ * JSON-RPC over Streamable HTTP. That's still deferred - see "Deferred, on
+ * purpose" in docs/architecture.md for the current status.
  */
 export const handshakeConformance: Check = {
   id: "handshake-conformance",

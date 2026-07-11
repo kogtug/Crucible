@@ -5,11 +5,9 @@ import type { Check, CheckStatus } from "./types.js";
 import type { McpHarness } from "@crucible/core";
 
 // These tests exercise the engine in isolation with fake checks, so they
-// don't need a real MCP connection. `packages/cli`'s manual scan against the
-// fixture server (see README quickstart) is what exercises the real,
-// end-to-end stdio + handshake path; that will grow into an automated
-// integration test in Phase 2 once there is more than one fixture to run it
-// against.
+// don't need a real MCP connection. integration.test.ts (this package) and
+// modern/integration.test.ts are what exercise the real, end-to-end stdio +
+// handshake path against actual fixture servers.
 
 test("a check that throws becomes a failed CheckResult instead of crashing the run", async () => {
   const explodingCheck: Check = {

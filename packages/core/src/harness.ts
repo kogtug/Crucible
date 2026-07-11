@@ -8,8 +8,8 @@ import type { Implementation, ServerCapabilities } from "@modelcontextprotocol/s
  * Phase 1 only supports the stdio transport (spawning a local child process),
  * because that is enough to validate the harness architecture end-to-end.
  * Streamable HTTP support (needed to reach remote MCP servers, and required
- * for several of the new 2026-07-28 spec checks) is planned for Phase 2 -
- * see docs/architecture.md.
+ * for several of the new 2026-07-28 spec checks) is still deferred - see
+ * "Deferred, on purpose" in docs/architecture.md for the current status.
  */
 export interface TargetServerCommand {
   command: string;
@@ -30,7 +30,7 @@ export interface HarnessOptions {
  * Every conformance check receives an already-connected McpHarness instance
  * rather than talking to the transport directly. That indirection is what
  * lets the same check run unmodified against stdio today and Streamable HTTP
- * once Phase 2 adds that transport.
+ * once that transport lands - see docs/architecture.md.
  */
 export class McpHarness {
   private readonly client: Client;
