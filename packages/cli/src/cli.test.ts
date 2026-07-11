@@ -59,6 +59,45 @@ test("crucible scan exits 1 and reports failures for a broken modern fixture", a
   assert.equal(exitCode, 1);
 });
 
+test("crucible chaos reports all-resilient against the well-behaved stateless fixture", async () => {
+  const { stdout, exitCode } = await runCli(["chaos", "--format", "json", "--", "node", statelessServerEntry]);
+  const report = JSON.parse(stdout);
+  assert.equal(report.summary.resilient, 2);
+  assert.equal(exitCode, 0);
+});
+
+test("crucible chaos reports 'crashed' and exits 1 against CRUCIBLE_BREAK=crash-on-malformed", async () => {
+  const { stdout, exitCode } = await runCli([
+    "chaos",
+    "--format",
+    "json",
+    "--",
+    "env",
+    "CRUCIBLE_BREAK=crash-on-malformed",
+    "node",
+    statelessServerEntry,
+  ]);
+  const report = JSON.parse(stdout);
+  assert.equal(report.summary.crashed, 2);
+  assert.equal(exitCode, 1);
+});
+
+test("crucible chaos works era-agnostically against the legacy SDK-based fixture, and exits 1 there too", async () => {
+  // Real finding, verified against primary sources before being treated as
+  // one - see FINDINGS.md. Short version: the official SDK's stdio
+  // transport doesn't send a JSON-RPC error for malformed input (traced to
+  // an unguarded JSON.parse in shared/stdio.js), which is a real
+  // robustness gap relative to JSON-RPC 2.0 convention, but is NOT a clean
+  // MCP specification violation - the spec is more silent on this exact
+  // case than that framing would suggest. That's why this is 'degraded',
+  // not something stronger.
+  const { stdout, exitCode } = await runCli(["chaos", "--format", "json", "--", "node", legacyServerEntry]);
+  const report = JSON.parse(stdout);
+  const malformed = report.results.find((r: { id: string }) => r.id === "malformed-json-resilience");
+  assert.equal(malformed.verdict, "degraded");
+  assert.equal(exitCode, 1);
+});
+
 test("crucible scan rejects an unknown --format value with exit code 2", async () => {
   const { exitCode } = await runCli(["scan", "--format", "xml", "--", "node", legacyServerEntry]);
   assert.equal(exitCode, 2);
