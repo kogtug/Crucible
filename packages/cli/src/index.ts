@@ -3,6 +3,8 @@ import { Command } from "commander";
 import { McpHarness, RawJsonRpcClient, probeServerEra } from "@crucible/core";
 import { runChecks, runModernChecks } from "@crucible/conformance";
 import type { CheckResult } from "@crucible/conformance";
+import { runChaosScenarios } from "@crucible/chaos";
+import type { ChaosResult, ResilienceVerdict } from "@crucible/chaos";
 
 /** The version Crucible asks for when probing. If a target only supports
  * older modern versions in the future, we fall back to its own advertised
@@ -58,6 +60,60 @@ function negotiateVersion(supportedVersions: string[]): string {
     : (supportedVersions[0] ?? PREFERRED_MODERN_VERSION);
 }
 
+const VERDICT_ICON: Record<ResilienceVerdict, string> = {
+  resilient: "\u2705",
+  degraded: "\u26a0\ufe0f ",
+  hung: "\u23f3",
+  crashed: "\ud83d\udca5",
+};
+
+interface ChaosReport {
+  target: string;
+  results: ChaosResult[];
+}
+
+function summarizeChaos(results: ChaosResult[]) {
+  return {
+    resilient: results.filter((r) => r.verdict === "resilient").length,
+    degraded: results.filter((r) => r.verdict === "degraded").length,
+    hung: results.filter((r) => r.verdict === "hung").length,
+    crashed: results.filter((r) => r.verdict === "crashed").length,
+    total: results.length,
+  };
+}
+
+function printChaosHumanReport(report: ChaosReport): void {
+  console.log(`\nCrucible chaos: attacking ${report.target}\n`);
+
+  for (const result of report.results) {
+    console.log(`${VERDICT_ICON[result.verdict]} [${result.verdict.toUpperCase()}] ${result.title}`);
+    console.log(`   ${result.message}`);
+    if (result.specRef) console.log(`   spec: ${result.specRef}`);
+    console.log("");
+  }
+
+  const s = summarizeChaos(report.results);
+  console.log(
+    `Summary: ${s.resilient} resilient, ${s.degraded} degraded, ${s.hung} hung, ${s.crashed} crashed (${s.total} total).`,
+  );
+}
+
+function printChaosJsonReport(report: ChaosReport): void {
+  console.log(JSON.stringify({ ...report, summary: summarizeChaos(report.results) }, null, 2));
+}
+
+async function runChaos(command: string, args: string[]): Promise<ChaosReport> {
+  const target = [command, ...args].join(" ");
+  const client = new RawJsonRpcClient({ command, args });
+  await client.connect();
+  try {
+    const results = await runChaosScenarios(client);
+    return { target, results };
+  } finally {
+    await client.close();
+  }
+}
+
 async function runLegacyScan(command: string, args: string[]): Promise<CheckResult[]> {
   const harness = new McpHarness({ command, args });
   try {
@@ -108,6 +164,51 @@ async function scan(command: string, args: string[]): Promise<ScanReport> {
   }
 }
 
+type OutputFormat = "human" | "json";
+
+function parseFormat(raw: string): OutputFormat | null {
+  return raw === "human" || raw === "json" ? raw : null;
+}
+
+/**
+ * Both `scan` and `chaos`'s actions were the same wrapper around a
+ * different `execute`/print pair: validate --format, run, print with the
+ * right printer, set an exit code from the report - or, on a connection
+ * -level failure, print an error in the matching format and exit 2. That
+ * wrapper is now here once; `execute`, `print`, and `exitCodeFor` are the
+ * only things specific to either command.
+ */
+async function runCommand<Report>(
+  rawFormat: string,
+  command: string,
+  args: string[],
+  execute: (command: string, args: string[]) => Promise<Report>,
+  print: Record<OutputFormat, (report: Report) => void>,
+  exitCodeFor: (report: Report) => number,
+  failureLabel: string,
+): Promise<void> {
+  const format = parseFormat(rawFormat);
+  if (!format) {
+    console.error(`Unknown --format '${rawFormat}': expected 'human' or 'json'.`);
+    process.exitCode = 2;
+    return;
+  }
+
+  try {
+    const report = await execute(command, args);
+    print[format](report);
+    process.exitCode = exitCodeFor(report);
+  } catch (err) {
+    const message = `Crucible could not complete the ${failureLabel}: ${err instanceof Error ? err.message : String(err)}`;
+    if (format === "json") {
+      console.log(JSON.stringify({ target: [command, ...args].join(" "), error: message }, null, 2));
+    } else {
+      console.error(message);
+    }
+    process.exitCode = 2;
+  }
+}
+
 const program = new Command();
 
 program
@@ -124,32 +225,38 @@ program
   )
   .option("--format <type>", "output format: 'human' or 'json'", "human")
   .argument("<command...>", "the command that launches the target server over stdio, e.g. `node server.js`")
-  .action(async (commandParts: string[], options: { format: string }) => {
-    if (options.format !== "human" && options.format !== "json") {
-      console.error(`Unknown --format '${options.format}': expected 'human' or 'json'.`);
-      process.exitCode = 2;
-      return;
-    }
-
+  .action((commandParts: string[], options: { format: string }) => {
     const [command, ...args] = commandParts;
+    return runCommand(
+      options.format,
+      command,
+      args,
+      scan,
+      { human: printHumanReport, json: printJsonReport },
+      (report) => (report.results.some((r) => r.status === "fail") ? 1 : 0),
+      "scan",
+    );
+  });
 
-    try {
-      const report = await scan(command, args);
-      if (options.format === "json") {
-        printJsonReport(report);
-      } else {
-        printHumanReport(report);
-      }
-      process.exitCode = report.results.some((r) => r.status === "fail") ? 1 : 0;
-    } catch (err) {
-      const message = `Crucible could not complete the scan: ${err instanceof Error ? err.message : String(err)}`;
-      if (options.format === "json") {
-        console.log(JSON.stringify({ target: [command, ...args].join(" "), error: message }, null, 2));
-      } else {
-        console.error(message);
-      }
-      process.exitCode = 2;
-    }
+program
+  .command("chaos")
+  .description(
+    "Send a target MCP server a battery of deliberately adversarial inputs (malformed JSON, " +
+      "unrecognized methods) and score how gracefully it degrades: resilient, degraded, hung, or crashed.",
+  )
+  .option("--format <type>", "output format: 'human' or 'json'", "human")
+  .argument("<command...>", "the command that launches the target server over stdio, e.g. `node server.js`")
+  .action((commandParts: string[], options: { format: string }) => {
+    const [command, ...args] = commandParts;
+    return runCommand(
+      options.format,
+      command,
+      args,
+      runChaos,
+      { human: printChaosHumanReport, json: printChaosJsonReport },
+      (report) => (report.results.some((r) => r.verdict !== "resilient") ? 1 : 0),
+      "chaos run",
+    );
   });
 
 await program.parseAsync(process.argv);

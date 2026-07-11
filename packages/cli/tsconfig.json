@@ -4,6 +4,6 @@
     "outDir": "dist",
     "rootDir": "src"
   },
-  "references": [{ "path": "../core" }, { "path": "../conformance" }],
+  "references": [{ "path": "../core" }, { "path": "../conformance" }, { "path": "../chaos" }],
   "include": ["src"]
 }
