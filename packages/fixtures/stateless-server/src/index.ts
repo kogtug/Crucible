@@ -11,12 +11,21 @@
  * and this raw, hand-written path.
  *
  * Set CRUCIBLE_BREAK to one of the following to deliberately violate a
- * single rule, for regression-testing the conformance check meant to catch
- * exactly that violation - everything else about the response stays
- * spec-correct so each check is exercised in isolation:
- *   - "missing-result-type"  omit `resultType` from every result
- *   - "bad-cache-scope"      use an invalid `cacheScope` value
- *   - "negative-ttl"         use a negative `ttlMs`
+ * single rule, for regression-testing the check meant to catch exactly
+ * that violation - everything else about the response stays spec-correct
+ * so each check is exercised in isolation:
+ *   - "missing-result-type"      omit `resultType` from every result
+ *   - "bad-cache-scope"          use an invalid `cacheScope` value
+ *   - "negative-ttl"             use a negative `ttlMs`
+ *   - "crash-on-malformed"       exit(1) on unparseable input instead of
+ *                                 ignoring it (for the chaos engine)
+ *   - "hang-on-unknown-method"   never respond to an unrecognized method,
+ *                                 but keep processing everything else
+ *                                 normally (for the chaos engine)
+ *   - "freeze-on-unknown-method" block the entire event loop forever on an
+ *                                 unrecognized method, so the process stops
+ *                                 responding to *everything*, not just that
+ *                                 one request (for the chaos engine)
  */
 
 const PROTOCOL_VERSION = "2026-07-28";
@@ -46,7 +55,7 @@ function writeResult(id: string | number, result: Record<string, unknown>): void
   writeMessage({ jsonrpc: "2.0", id, result });
 }
 
-function writeError(id: string | number, code: number, message: string, data?: unknown): void {
+function writeError(id: string | number | null, code: number, message: string, data?: unknown): void {
   writeMessage({ jsonrpc: "2.0", id, error: { code, message, ...(data !== undefined ? { data } : {}) } });
 }
 
@@ -102,7 +111,13 @@ process.stdin.on("data", (chunk: string) => {
     try {
       message = JSON.parse(line);
     } catch {
-      continue; // Not valid JSON - nothing sensible to parse a method/id from.
+      if (BREAK_MODE === "crash-on-malformed") {
+        process.exit(1);
+      }
+      // Per JSON-RPC 2.0, a parse error is reported with id: null, since a
+      // request that couldn't be parsed can't reliably have its id read.
+      writeError(null, -32700, "Parse error: input was not valid JSON");
+      continue;
     }
 
     if (message.id === undefined) continue; // Notification: no response expected.
@@ -115,7 +130,20 @@ process.stdin.on("data", (chunk: string) => {
         handleToolsList(message.id, message.params);
         break;
       default:
-        writeError(message.id, -32601, `Method not found: ${message.method}`);
+        if (BREAK_MODE === "freeze-on-unknown-method") {
+          // Deliberately block the entire event loop forever: unlike
+          // "hang-on-unknown-method" below, this makes the process stop
+          // responding to *everything*, not just this one request - a
+          // genuine total-freeze, for testing that distinction.
+          while (true) {
+            /* busy-wait forever, on purpose */
+          }
+        }
+        if (BREAK_MODE !== "hang-on-unknown-method") {
+          writeError(message.id, -32601, `Method not found: ${message.method}`);
+        }
+        // In "hang-on-unknown-method" mode, deliberately never respond to
+        // *this* request, but keep processing everything else normally.
     }
   }
 });
