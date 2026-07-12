@@ -1,5 +1,6 @@
+export type { Target, StdioTarget, HttpTarget } from "./target.js";
 export { McpHarness } from "./harness.js";
-export type { TargetServerCommand, HarnessOptions } from "./harness.js";
+export type { HarnessOptions } from "./harness.js";
 export { RawJsonRpcClient, isJsonRpcError } from "./rawClient.js";
 export type {
   JsonRpcRequestMessage,

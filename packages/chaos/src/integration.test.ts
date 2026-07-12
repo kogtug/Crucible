@@ -11,6 +11,7 @@ const statelessServerEntry = path.resolve(here, "../../fixtures/stateless-server
 
 async function runChaosAgainst(breakMode?: string): Promise<ChaosResult[]> {
   const client = new RawJsonRpcClient({
+    kind: "stdio",
     command: "node",
     args: [statelessServerEntry],
     env: breakMode ? { CRUCIBLE_BREAK: breakMode } : undefined,

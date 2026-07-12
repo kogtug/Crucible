@@ -13,7 +13,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const fixtureServerEntry = path.resolve(here, "../../fixtures/basic-server/dist/index.js");
 
 test("default checks all pass against the basic reference fixture server", async () => {
-  const harness = new McpHarness({ command: "node", args: [fixtureServerEntry] });
+  const harness = new McpHarness({ kind: "stdio", command: "node", args: [fixtureServerEntry] });
 
   try {
     await harness.connect();
