@@ -4,6 +4,9 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
+import type { AddressInfo } from "node:net";
+import { createStatelessHttpServer } from "@crucible/fixture-stateless-server/dist/httpServer.js";
+import { createEchoHttpServer } from "@crucible/fixture-basic-server/dist/httpServer.js";
 
 const execFileAsync = promisify(execFile);
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -101,4 +104,43 @@ test("crucible chaos works era-agnostically against the legacy SDK-based fixture
 test("crucible scan rejects an unknown --format value with exit code 2", async () => {
   const { exitCode } = await runCli(["scan", "--format", "xml", "--", "node", legacyServerEntry]);
   assert.equal(exitCode, 2);
+});
+
+test("crucible scan <url> works against a real HTTP server for both fixtures", async () => {
+  const modernServer = createStatelessHttpServer();
+  const legacyServer = createEchoHttpServer();
+  await new Promise<void>((resolve) => modernServer.listen(0, resolve));
+  await new Promise<void>((resolve) => legacyServer.listen(0, resolve));
+  const modernPort = (modernServer.address() as AddressInfo).port;
+  const legacyPort = (legacyServer.address() as AddressInfo).port;
+
+  try {
+    const modern = await runCli(["scan", "--format", "json", `http://localhost:${modernPort}/`]);
+    const modernReport = JSON.parse(modern.stdout);
+    assert.equal(modernReport.era, "modern");
+    assert.equal(modernReport.summary.fail, 0);
+    assert.equal(modern.exitCode, 0);
+
+    const legacy = await runCli(["scan", "--format", "json", `http://localhost:${legacyPort}/`]);
+    const legacyReport = JSON.parse(legacy.stdout);
+    assert.equal(legacyReport.era, "legacy");
+    assert.equal(legacyReport.summary.fail, 0);
+    assert.equal(legacy.exitCode, 0);
+  } finally {
+    modernServer.close();
+    legacyServer.close();
+  }
+});
+
+test("crucible chaos rejects an HTTP target with a clear error and exit code 2", async () => {
+  const server = createStatelessHttpServer();
+  await new Promise<void>((resolve) => server.listen(0, resolve));
+  const port = (server.address() as AddressInfo).port;
+
+  try {
+    const { exitCode } = await runCli(["chaos", `http://localhost:${port}/`]);
+    assert.equal(exitCode, 2);
+  } finally {
+    server.close();
+  }
 });
