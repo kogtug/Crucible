@@ -13,7 +13,9 @@
     "build": "npm run build --workspaces --if-present",
     "test": "npm run build && node --test packages/*/dist/*.test.js packages/*/dist/*/*.test.js",
     "scan:basic": "npm run build && node packages/cli/dist/index.js scan -- node packages/fixtures/basic-server/dist/index.js",
-    "scan:stateless": "npm run build && node packages/cli/dist/index.js scan -- node packages/fixtures/stateless-server/dist/index.js"
+    "scan:stateless": "npm run build && node packages/cli/dist/index.js scan -- node packages/fixtures/stateless-server/dist/index.js",
+    "serve:basic-http": "npm run build && PORT=8081 node packages/fixtures/basic-server/dist/httpServer.js",
+    "serve:stateless-http": "npm run build && PORT=8080 node packages/fixtures/stateless-server/dist/httpServer.js"
   },
   "devDependencies": {
     "@types/node": "^22.0.0"

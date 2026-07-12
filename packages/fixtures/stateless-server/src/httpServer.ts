@@ -1,0 +1,131 @@
+/**
+ * The Streamable HTTP entry point for the stateless fixture - same
+ * server/discover and tools/list logic as index.ts (stdio), via the shared
+ * handlers.ts, plus the HTTP-specific header validation the draft spec
+ * requires (SEP-2243): every POST must carry an `Mcp-Method` header
+ * mirroring the body's `method`, and an `MCP-Protocol-Version` header
+ * mirroring the body's `_meta` protocol version. A mismatch is a
+ * `HeaderMismatch` (-32020) error, not something to silently let through.
+ *
+ * Only the single-JSON-response path is implemented - the draft spec also
+ * allows a server to respond with an SSE stream, but nothing in this repo
+ * yet needs one (no long-running or subscription-style calls), so building
+ * that would be speculative rather than something a check drives. See
+ * docs/architecture.md, "Deferred, on purpose".
+ *
+ * CRUCIBLE_BREAK=skip-header-validation disables the header checks
+ * described above (everything else about the response stays correct), so
+ * httpHeaderConformance has a real negative case to catch, not just a
+ * positive one. The conformance break modes from handlers.ts
+ * (missing-result-type, bad-cache-scope, negative-ttl) work here too, via
+ * the same shared dispatch().
+ */
+import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
+import { pathToFileURL } from "node:url";
+import { dispatch } from "./handlers.js";
+
+const HEADER_MISMATCH = -32020;
+
+interface RpcRequestBody {
+  jsonrpc: "2.0";
+  id?: string | number | null;
+  method?: string;
+  params?: Record<string, unknown>;
+}
+
+function writeJson(res: ServerResponse, status: number, body: unknown): void {
+  const payload = JSON.stringify(body);
+  res.writeHead(status, { "Content-Type": "application/json" });
+  res.end(payload);
+}
+
+function writeHeaderMismatch(res: ServerResponse, id: string | number | null, detail: string): void {
+  writeJson(res, 400, { jsonrpc: "2.0", id, error: { code: HEADER_MISMATCH, message: `Header mismatch: ${detail}` } });
+}
+
+async function readBody(req: IncomingMessage): Promise<string> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of req) chunks.push(chunk as Buffer);
+  return Buffer.concat(chunks).toString("utf8");
+}
+
+function headerValue(req: IncomingMessage, name: string): string | undefined {
+  const value = req.headers[name.toLowerCase()];
+  return Array.isArray(value) ? value[0] : value;
+}
+
+/**
+ * Exported so tests can start this in-process on an OS-assigned port
+ * (`.listen(0)`) instead of spawning a child process. `breakMode` is a
+ * real parameter, not read from `process.env` internally, on purpose: a
+ * module-level `const BREAK_MODE = process.env.CRUCIBLE_BREAK` would be
+ * evaluated once at import time, which works fine for the standalone
+ * -script path below (a fresh process per break mode) but silently breaks
+ * in-process tests that construct this server more than once with
+ * different modes in the same process - found by actually testing that
+ * exact scenario, not by inspection.
+ */
+export function createStatelessHttpServer(breakMode: string = process.env.CRUCIBLE_BREAK ?? ""): Server {
+  return createServer(async (req, res) => {
+    if (req.method !== "POST") {
+      writeJson(res, 405, { jsonrpc: "2.0", id: null, error: { code: -32601, message: "Only POST is supported on this endpoint" } });
+      return;
+    }
+
+    let body: RpcRequestBody;
+    try {
+      body = JSON.parse(await readBody(req));
+    } catch {
+      writeJson(res, 400, { jsonrpc: "2.0", id: null, error: { code: -32700, message: "Parse error: request body was not valid JSON" } });
+      return;
+    }
+
+    const id = body.id ?? null;
+
+    if (breakMode !== "skip-header-validation") {
+      const mcpMethod = headerValue(req, "Mcp-Method");
+      if (mcpMethod !== body.method) {
+        writeHeaderMismatch(res, id, `Mcp-Method header ('${mcpMethod ?? "(missing)"}') does not match the request body's method ('${body.method ?? "(missing)"}')`);
+        return;
+      }
+
+      const meta = (body.params?._meta ?? {}) as Record<string, unknown>;
+      const bodyVersion = meta["io.modelcontextprotocol/protocolVersion"];
+      const headerVersion = headerValue(req, "MCP-Protocol-Version");
+      if (headerVersion !== bodyVersion) {
+        writeHeaderMismatch(
+          res,
+          id,
+          `MCP-Protocol-Version header ('${headerVersion ?? "(missing)"}') does not match the request body's _meta protocol version ('${String(bodyVersion ?? "(missing)")}')`,
+        );
+        return;
+      }
+    }
+
+    if (id === null) {
+      // A notification: no response body expected, but still a real HTTP
+      // response per the transport spec (202 Accepted, empty body).
+      res.writeHead(202).end();
+      return;
+    }
+
+    const { result, error } = dispatch(breakMode, body.method, body.params);
+    if (error) {
+      writeJson(res, 200, { jsonrpc: "2.0", id, error });
+    } else {
+      writeJson(res, 200, { jsonrpc: "2.0", id, result });
+    }
+  });
+}
+
+// Runnable directly (`node dist/httpServer.js`), for manual use and for the
+// CLI to point at - as opposed to createStatelessHttpServer() above, which
+// tests import directly to get an in-process server on a dynamic port.
+const isMain = process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href;
+if (isMain) {
+  const port = Number(process.env.PORT ?? 8080);
+  createStatelessHttpServer().listen(port, () => {
+    console.error(`crucible-fixture-stateless (HTTP) listening on http://localhost:${port}/`);
+  });
+}
+
