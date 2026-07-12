@@ -1,7 +1,6 @@
 #!/usr/bin/env node
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { z } from "zod";
+import { createEchoServer } from "./createEchoServer.js";
 
 /**
  * The simplest possible well-behaved MCP server: one tool, one capability,
@@ -10,26 +9,11 @@ import { z } from "zod";
  * targets, for proving a check also catches a real violation, live on the
  * *other* fixture (`../stateless-server`) as `CRUCIBLE_BREAK` modes rather
  * than as separate fixture packages - see that file's own doc comment.
+ *
+ * The server definition itself lives in createEchoServer.ts, shared with
+ * httpServer.ts, so the two transports can't drift into answering
+ * differently.
  */
-const server = new McpServer({
-  name: "crucible-fixture-basic",
-  version: "0.1.0",
-});
-
-server.registerTool(
-  "echo",
-  {
-    title: "Echo",
-    description:
-      "Returns the given message unchanged. Used as Crucible's minimal conformance fixture.",
-    inputSchema: {
-      message: z.string().describe("Text to echo back"),
-    },
-  },
-  async ({ message }) => ({
-    content: [{ type: "text", text: message }],
-  }),
-);
-
+const server = createEchoServer();
 const transport = new StdioServerTransport();
 await server.connect(transport);
