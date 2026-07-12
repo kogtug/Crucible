@@ -4,6 +4,12 @@
     "outDir": "dist",
     "rootDir": "src"
   },
-  "references": [{ "path": "../core" }, { "path": "../conformance" }, { "path": "../chaos" }],
+  "references": [
+    { "path": "../core" },
+    { "path": "../conformance" },
+    { "path": "../chaos" },
+    { "path": "../fixtures/basic-server" },
+    { "path": "../fixtures/stateless-server" }
+  ],
   "include": ["src"]
 }

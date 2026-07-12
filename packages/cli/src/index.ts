@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { Command } from "commander";
 import { McpHarness, RawJsonRpcClient, probeServerEra } from "@crucible/core";
+import type { Target } from "@crucible/core";
 import { runChecks, runModernChecks } from "@crucible/conformance";
 import type { CheckResult } from "@crucible/conformance";
 import { runChaosScenarios } from "@crucible/chaos";
@@ -10,6 +11,24 @@ import type { ChaosResult, ResilienceVerdict } from "@crucible/chaos";
  * older modern versions in the future, we fall back to its own advertised
  * list rather than insisting on this one - see negotiateVersion() below. */
 const PREFERRED_MODERN_VERSION = "2026-07-28";
+
+/**
+ * A single argument that looks like a URL is an HTTP target; anything else
+ * (one command, or a command plus arguments) is a stdio target to spawn.
+ * This mirrors how a person would naturally type either: `crucible scan --
+ * node server.js` versus `crucible scan http://localhost:8080/mcp`.
+ */
+function parseTarget(commandParts: string[]): Target {
+  if (commandParts.length === 1 && /^https?:\/\//i.test(commandParts[0])) {
+    return { kind: "http", url: commandParts[0] };
+  }
+  const [command, ...args] = commandParts;
+  return { kind: "stdio", command, args };
+}
+
+function describeTarget(target: Target): string {
+  return target.kind === "http" ? target.url : [target.command, ...(target.args ?? [])].join(" ");
+}
 
 const STATUS_ICON: Record<CheckResult["status"], string> = {
   pass: "\u2705",
@@ -102,20 +121,26 @@ function printChaosJsonReport(report: ChaosReport): void {
   console.log(JSON.stringify({ ...report, summary: summarizeChaos(report.results) }, null, 2));
 }
 
-async function runChaos(command: string, args: string[]): Promise<ChaosReport> {
-  const target = [command, ...args].join(" ");
-  const client = new RawJsonRpcClient({ command, args });
+async function runChaos(target: Target): Promise<ChaosReport> {
+  const targetLabel = describeTarget(target);
+  if (target.kind === "http") {
+    throw new Error(
+      "Chaos testing over HTTP isn't implemented yet - only stdio targets are supported for 'chaos' " +
+        "(see docs/architecture.md, 'Deferred, on purpose'). Use 'scan' for HTTP conformance checks.",
+    );
+  }
+  const client = new RawJsonRpcClient(target);
   await client.connect();
   try {
     const results = await runChaosScenarios(client);
-    return { target, results };
+    return { target: targetLabel, results };
   } finally {
     await client.close();
   }
 }
 
-async function runLegacyScan(command: string, args: string[]): Promise<CheckResult[]> {
-  const harness = new McpHarness({ command, args });
+async function runLegacyScan(target: Target): Promise<CheckResult[]> {
+  const harness = new McpHarness(target);
   try {
     await harness.connect();
     return await runChecks(harness);
@@ -131,24 +156,26 @@ async function runLegacyScan(command: string, args: string[]): Promise<CheckResu
  * McpHarness connection, since the SDK's initialize-based Client manages
  * its own transport and can't take over a connection that already had raw
  * traffic written to it. See docs/architecture.md, "Two protocol eras".
+ * Works identically for stdio and HTTP targets - the probe itself is
+ * transport-agnostic, since server/discover is just another JSON-RPC call.
  */
-async function scan(command: string, args: string[]): Promise<ScanReport> {
-  const target = [command, ...args].join(" ");
-  const probeClient = new RawJsonRpcClient({ command, args });
+async function scan(target: Target): Promise<ScanReport> {
+  const targetLabel = describeTarget(target);
+  const probeClient = new RawJsonRpcClient(target);
   await probeClient.connect();
 
   const probe = await probeServerEra(probeClient, PREFERRED_MODERN_VERSION);
 
   if (probe.era === "legacy") {
     await probeClient.close();
-    const results = await runLegacyScan(command, args);
-    return { target, era: "legacy", results };
+    const results = await runLegacyScan(target);
+    return { target: targetLabel, era: "legacy", results };
   }
 
   if (probe.era === "modern-version-mismatch") {
     await probeClient.close();
     return {
-      target,
+      target: targetLabel,
       era: "modern-version-mismatch",
       results: [],
       note: `server/discover reports this server only supports [${probe.supportedVersions.join(", ")}], not ${PREFERRED_MODERN_VERSION}. Per spec, Crucible does not fall back to 'initialize' once a server has identified itself as modern.`,
@@ -158,7 +185,7 @@ async function scan(command: string, args: string[]): Promise<ScanReport> {
   try {
     const negotiatedVersion = negotiateVersion(probe.supportedVersions);
     const results = await runModernChecks(probeClient, probe.discoverResult, negotiatedVersion);
-    return { target, era: "modern", results };
+    return { target: targetLabel, era: "modern", results };
   } finally {
     await probeClient.close();
   }
@@ -180,9 +207,8 @@ function parseFormat(raw: string): OutputFormat | null {
  */
 async function runCommand<Report>(
   rawFormat: string,
-  command: string,
-  args: string[],
-  execute: (command: string, args: string[]) => Promise<Report>,
+  target: Target,
+  execute: (target: Target) => Promise<Report>,
   print: Record<OutputFormat, (report: Report) => void>,
   exitCodeFor: (report: Report) => number,
   failureLabel: string,
@@ -195,13 +221,13 @@ async function runCommand<Report>(
   }
 
   try {
-    const report = await execute(command, args);
+    const report = await execute(target);
     print[format](report);
     process.exitCode = exitCodeFor(report);
   } catch (err) {
     const message = `Crucible could not complete the ${failureLabel}: ${err instanceof Error ? err.message : String(err)}`;
     if (format === "json") {
-      console.log(JSON.stringify({ target: [command, ...args].join(" "), error: message }, null, 2));
+      console.log(JSON.stringify({ target: describeTarget(target), error: message }, null, 2));
     } else {
       console.error(message);
     }
@@ -224,13 +250,15 @@ program
       "stateless/discover-based one, and runs the matching check family.",
   )
   .option("--format <type>", "output format: 'human' or 'json'", "human")
-  .argument("<command...>", "the command that launches the target server over stdio, e.g. `node server.js`")
+  .argument(
+    "<command...>",
+    "a command that launches the target server over stdio (e.g. `node server.js`), " +
+      "or a single MCP endpoint URL (e.g. `http://localhost:8080/mcp`)",
+  )
   .action((commandParts: string[], options: { format: string }) => {
-    const [command, ...args] = commandParts;
     return runCommand(
       options.format,
-      command,
-      args,
+      parseTarget(commandParts),
       scan,
       { human: printHumanReport, json: printJsonReport },
       (report) => (report.results.some((r) => r.status === "fail") ? 1 : 0),
@@ -242,16 +270,15 @@ program
   .command("chaos")
   .description(
     "Send a target MCP server a battery of deliberately adversarial inputs (malformed JSON, " +
-      "unrecognized methods) and score how gracefully it degrades: resilient, degraded, hung, or crashed.",
+      "unrecognized methods) and score how gracefully it degrades: resilient, degraded, hung, or crashed. " +
+      "Stdio targets only for now.",
   )
   .option("--format <type>", "output format: 'human' or 'json'", "human")
   .argument("<command...>", "the command that launches the target server over stdio, e.g. `node server.js`")
   .action((commandParts: string[], options: { format: string }) => {
-    const [command, ...args] = commandParts;
     return runCommand(
       options.format,
-      command,
-      args,
+      parseTarget(commandParts),
       runChaos,
       { human: printChaosHumanReport, json: printChaosJsonReport },
       (report) => (report.results.some((r) => r.verdict !== "resilient") ? 1 : 0),
