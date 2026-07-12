@@ -51,7 +51,7 @@ that term doesn't exist in it - the real mechanism is a JSON-RPC method,
 - [x] Modern checks: `discoverConformance`, `statelessToolsListConformance` (both version-gated)
 - [x] CLI auto-detects era and runs the matching check family; `--format json` for CI
 - [x] 18 tests total, including true-positive *and* true-negative coverage for every new check
-- [ ] Streamable HTTP transport + its header requirements (SEP-2243) — deferred, see `docs/architecture.md`
+- [x] Streamable HTTP transport + its header requirements (SEP-2243) — delivered in Phase 4, below
 - [ ] `io.modelcontextprotocol/tasks` extension conformance — deferred
 - [ ] MRTR (`input_required`) round-trip conformance — accepted as valid, not yet exercised end to end
 
@@ -65,11 +65,28 @@ that term doesn't exist in it - the real mechanism is a JSON-RPC method,
 - [x] A real finding, rigorously verified before being stated as one: see [`FINDINGS.md`](./FINDINGS.md)
 - [x] 29 tests total
 
+**Phase 4 — Streamable HTTP transport**
+- [x] `Target` discriminated union (stdio | http) replaces the stdio-only shape,
+      across `McpHarness` and `RawJsonRpcClient`
+- [x] `McpHarness` over HTTP via the official SDK's `StreamableHTTPClientTransport`
+- [x] `RawJsonRpcClient` over HTTP: hand-rolled POST with the draft spec's required
+      headers (`Mcp-Method`, `MCP-Protocol-Version`), single-JSON-response only (no SSE)
+- [x] `httpHeaderConformance` — proves a server actually rejects a mismatched
+      `Mcp-Method` header, not just that it works when nothing's wrong
+- [x] Both fixtures grew an `httpServer.ts` entry point alongside the existing
+      stdio one, sharing the same business logic (`createEchoServer()` /
+      `handlers.ts`) so the two transports can't quietly drift apart
+- [x] CLI: `crucible scan <url>` alongside `crucible scan -- <command>`
+      (`chaos` stays stdio-only for now, and says so clearly if you try otherwise)
+- [x] 36 tests total, including real background-process smoke tests in CI,
+      not just in-process ones
+- [ ] SSE response mode, `Mcp-Name` header conformance, chaos-testing over HTTP — deferred, see `docs/architecture.md`
+
 **Later phases**
-- [ ] Phase 4: LLM-assisted adversarial test-case generation; Streamable HTTP transport;
+- [ ] Phase 5: LLM-assisted adversarial test-case generation;
       `io.modelcontextprotocol/tasks` extension conformance (deferred from Phase 2, see `docs/architecture.md`)
-- [ ] Phase 5: report dashboard + shareable badge
-- [ ] Phase 6: GitHub Action, SARIF export, case studies against real open-source
+- [ ] Phase 6: report dashboard + shareable badge
+- [ ] Phase 7: GitHub Action, SARIF export, case studies against real open-source
       MCP servers (with permission)
 
 ## Quickstart
@@ -77,10 +94,20 @@ that term doesn't exist in it - the real mechanism is a JSON-RPC method,
 ```bash
 npm install
 npm run build
-npm run scan:basic       # legacy (initialize-based) fixture
-npm run scan:stateless   # modern (draft 2026-07-28, discover-based) fixture
+npm run scan:basic       # legacy (initialize-based) fixture, over stdio
+npm run scan:stateless   # modern (draft 2026-07-28, discover-based) fixture, over stdio
 node packages/cli/dist/index.js chaos -- node packages/fixtures/stateless-server/dist/index.js
-npm test                 # 29 tests: unit + real end-to-end integration, all eras and scenarios
+npm test                 # 36 tests: unit + real end-to-end integration, every era/transport/scenario
+```
+
+Or over real Streamable HTTP, in two terminals:
+
+```bash
+# terminal 1
+npm run serve:stateless-http    # listens on :8080
+
+# terminal 2
+node packages/cli/dist/index.js scan http://localhost:8080/
 ```
 
 Try breaking the modern fixture on purpose, and watch Crucible catch it:
@@ -96,18 +123,24 @@ CRUCIBLE_BREAK=bad-cache-scope npm run build \
 ```
 packages/
   core/                low-level MCP connections: McpHarness (SDK-based) and
-                        RawJsonRpcClient + probeServerEra (hand-rolled)
+                        RawJsonRpcClient + probeServerEra (hand-rolled), both
+                        over stdio or Streamable HTTP via the shared Target type
   conformance/         spec-referenced checks + the engines that run them
-                        (legacy checks in checks/, modern checks in modern/)
+                        (legacy checks in checks/, modern checks in modern/,
+                        including the HTTP-only httpHeaderConformance)
   chaos/               fault-injection scenarios + four-tier resilience scoring
+                        (stdio only for now - see docs/architecture.md)
   cli/                 `crucible` command-line tool (scan, chaos)
   fixtures/
-    basic-server/       well-behaved legacy (SDK-based) reference server
-    stateless-server/   well-behaved modern (hand-rolled) reference server,
-                         with CRUCIBLE_BREAK modes for regression testing
+    basic-server/       well-behaved legacy (SDK-based) reference server -
+                         index.ts (stdio) and httpServer.ts (HTTP) share
+                         createEchoServer.ts
+    stateless-server/   well-behaved modern (hand-rolled) reference server -
+                         index.ts (stdio) and httpServer.ts (HTTP) share
+                         handlers.ts, each with their own CRUCIBLE_BREAK modes
 docs/
-  architecture.md       design decisions, including the two-protocol-era split
-                         and the chaos engine's verdict system
+  architecture.md       design decisions: the two-protocol-era split, the
+                         chaos engine's verdict system, the HTTP transport design
 FINDINGS.md             primary-source-verified conformance/robustness findings
 ```
 

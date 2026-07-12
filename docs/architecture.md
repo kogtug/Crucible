@@ -52,6 +52,76 @@ MCP protocol versions are zero-padded ISO dates (`"2026-07-28"`), and
 lexicographic order on strings of that exact shape is chronological order,
 so there's no reason to pull in a date-parsing dependency for this.
 
+## HTTP transport
+
+Both connection types (`McpHarness`, `RawJsonRpcClient`) now take a
+`Target` (`packages/core/src/target.ts`) instead of a stdio-only
+`TargetServerCommand`:
+
+```ts
+type Target =
+  | { kind: "stdio"; command: string; args?: string[]; env?: Record<string, string> }
+  | { kind: "http"; url: string };
+```
+
+This replaced `TargetServerCommand` everywhere rather than living alongside
+it, once a second transport needed describing - a discriminated union says
+"a target is a command or a URL, never partially either" in a way two
+independent shapes with optional fields wouldn't. The CLI decides which
+kind to build from its own argument: a single argument matching
+`^https?://` is an HTTP target, anything else is a stdio command
+(`parseTarget()` in `packages/cli/src/index.ts`), so `crucible scan --
+node server.js` and `crucible scan http://localhost:8080/mcp` both just
+work.
+
+`McpHarness`'s HTTP support is exactly one line of real work - swap in the
+official SDK's `StreamableHTTPClientTransport` for `StdioClientTransport` -
+because the SDK's `Client` already speaks both identically. `RawJsonRpcClient`'s
+is more involved, since it has no SDK to lean on: `request()` now branches
+on `target.kind`, and the HTTP path POSTs a single JSON-RPC message with
+the headers the draft spec requires (`Content-Type`, `Accept`,
+`Mcp-Method`, `MCP-Protocol-Version`) and reads back a single
+`application/json` response - no SSE handling, see "Deferred, on purpose".
+The chaos-specific methods (`writeRawLine`, `waitForNextRawResponse`) throw
+a clear error for HTTP targets rather than pretending to support them; only
+`request()` needed to work for every conformance check to work over either
+transport.
+
+**`httpHeaderConformance`** (`packages/conformance/src/modern/checks/httpHeaders.ts`)
+is a different shape of check from `discoverConformance` and
+`statelessToolsListConformance`: those two call the target normally and
+grade the response. This one deliberately sends a `tools/list` request with
+an `Mcp-Method` header that doesn't match its own body (via `RawRequestOptions.headerOverrides`,
+added for exactly this) and checks that the server rejects it with a
+-32020 `HeaderMismatch` - proving the server enforces the rule, not just
+that it behaves when nothing violates it. It reports `warn` for stdio
+targets, where the check doesn't apply at all, the same pattern
+`toolsListSchema` already used in Phase 1 for a server that doesn't
+advertise the `tools` capability.
+
+Both fixtures grew an HTTP entry point (`httpServer.ts`) alongside the
+existing stdio one (`index.ts`), each importing the same business logic
+rather than reimplementing it - `fixture-basic-server`'s two entry points
+share `createEchoServer()`; `fixture-stateless-server`'s share
+`handlers.ts`. `stateless-server`'s HTTP entry point also grew its own
+break mode, `CRUCIBLE_BREAK=skip-header-validation`, so
+`httpHeaderConformance` has a genuine server that gets the check wrong to
+fail against, not just one that gets it right - the same true-positive
+-and-true-negative discipline every other check in this repo follows. Both
+`httpServer.ts` files export a factory function (`createStatelessHttpServer(breakMode?)`,
+`createEchoHttpServer()`) that tests call directly and `.listen(0)` for an
+OS-assigned port, rather than spawning a child process and polling for
+readiness - and are also runnable standalone (`node dist/httpServer.js`,
+respecting a `PORT` env var) for manual use and for real end-to-end CI
+smoke tests against a genuine background process, not just an in-process
+one. `createStatelessHttpServer` takes its break mode as an explicit
+parameter defaulting to `process.env.CRUCIBLE_BREAK`, rather than reading
+the environment variable into a module-level constant - the latter was
+the first version, and it broke silently the first time a test tried to
+create two servers with different break modes in the same process, since
+the constant had already been fixed at import time. Found by testing that
+exact scenario, not by inspection.
+
 ## Why the fixture servers are built differently
 
 `fixture-basic-server` is built on `@modelcontextprotocol/sdk` because
@@ -153,19 +223,25 @@ shouldn't require touching behavior, or the tests that pin it.
 - **SEP-2575** - removes `initialize`; adds per-request `_meta` versioning and `server/discover`.
 - **SEP-2549** - `CacheableResult`: required `ttlMs` + `cacheScope` on list/read results.
 - **SEP-2322** - required `resultType` on every result; Multi Round-Trip Requests.
-- **SEP-2243** - required `Mcp-Method` / `Mcp-Name` headers on Streamable HTTP (not yet implemented - see Deferred, below).
+- **SEP-2243** - required `Mcp-Method` / `MCP-Protocol-Version` headers on Streamable HTTP, implemented in Phase 4 (`Mcp-Name`, which only applies to `tools/call` / `resources/read` / `prompts/get`, is still deferred - see below, none of Crucible's fixtures implement those methods yet).
 
 ## Deferred, on purpose
 
-- **Streamable HTTP transport**, and the `Mcp-Method` / `Mcp-Name` header
-  requirements that only apply to it (SEP-2243). Deferred again, now to
-  Phase 4: everything through Phase 3 turned out to be fully exercisable
-  over stdio (the chaos engine's two scenarios included), so there was
-  never a forcing function to take on an HTTP transport implementation
-  just to hit a roadmap checkbox. It's still coming - dropped connections
-  and malformed headers are exactly the kind of thing the chaos engine
-  should eventually cover - just not before it earns its place with a
-  scenario that actually needs it.
+- **Streamable HTTP's SSE response mode.** Only the single-JSON-response
+  path is implemented (see "HTTP transport", above) - a server MAY respond
+  with an SSE stream instead, but nothing in this repo needs one yet (no
+  long-running or subscription-style calls), so building it now would be
+  speculative rather than driven by an actual check that needs it.
+- **Chaos testing over HTTP.** `RawJsonRpcClient`'s HTTP path supports
+  `request()` fully, but the chaos-specific primitives (`writeRawLine`,
+  `waitForNextRawResponse`, a meaningful `isAlive()`) remain stdio-only.
+  "Malformed input" means something different for a persistent stdio
+  stream versus a single self-contained POST body, and that difference
+  deserves its own design pass rather than a same-day retrofit.
+- **`Mcp-Name` header conformance** (SEP-2243) - required only for
+  `tools/call`, `resources/read`, and `prompts/get`, none of which any
+  fixture in this repo implements yet. `httpHeaderConformance` covers
+  `Mcp-Method` and `MCP-Protocol-Version`, which apply to every request.
 - **The `io.modelcontextprotocol/tasks` extension.** Genuinely async task
   polling is a bigger surface than one milestone's worth, and the official
   SDK marks its own experimental Tasks support as unstable right now - this

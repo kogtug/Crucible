@@ -35,3 +35,15 @@ jobs:
         # need editing every time the finding is re-confirmed; the run itself
         # still executes and its output is visible in the log.
         run: node packages/cli/dist/index.js chaos -- node packages/fixtures/basic-server/dist/index.js || true
+
+      - name: Smoke-test scan over a real Streamable HTTP connection (both fixtures)
+        # Unlike the in-process HTTP tests in `npm test`, this starts each
+        # fixture as a genuine background process and points the CLI at its
+        # URL - the same path a person running this against a real server
+        # would take.
+        run: |
+          PORT=8080 node packages/fixtures/stateless-server/dist/httpServer.js &
+          PORT=8081 node packages/fixtures/basic-server/dist/httpServer.js &
+          sleep 1
+          node packages/cli/dist/index.js scan http://localhost:8080/
+          node packages/cli/dist/index.js scan http://localhost:8081/
