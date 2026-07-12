@@ -8,11 +8,13 @@ import type { Check, CheckResult } from "../types.js";
  * Note on scope: the SDK's own Zod schemas already validate the shape of the
  * initialize response before `connect()` resolves, so a connected harness
  * with populated getters is a reliable signal that basic handshake
- * conformance passed. What this check does NOT catch: servers that violate
- * the *new* 2026-07-28 stateless-transport header requirements (Mcp-Method /
- * Mcp-Name), which live below the SDK's abstraction and require talking raw
- * JSON-RPC over Streamable HTTP. That's still deferred - see "Deferred, on
- * purpose" in docs/architecture.md for the current status.
+ * conformance passed. What this check does NOT catch: the *new*
+ * 2026-07-28 stateless-transport header requirements (Mcp-Method /
+ * MCP-Protocol-Version) - not because they're unimplemented (see
+ * httpHeaderConformance in the modern check family, and "HTTP transport"
+ * in docs/architecture.md), but because this check specifically exercises
+ * the classic initialize-based handshake, which the new headers don't
+ * apply to in the first place.
  */
 export const handshakeConformance: Check = {
   id: "handshake-conformance",

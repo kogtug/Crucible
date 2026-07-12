@@ -4,8 +4,13 @@ import type { CheckResult } from "../types.js";
 import type { ModernCheck } from "./types.js";
 import { discoverConformance } from "./checks/discover.js";
 import { statelessToolsListConformance } from "./checks/toolsList.js";
+import { httpHeaderConformance } from "./checks/httpHeaders.js";
 
-export const defaultModernChecks: ModernCheck[] = [discoverConformance, statelessToolsListConformance];
+export const defaultModernChecks: ModernCheck[] = [
+  discoverConformance,
+  statelessToolsListConformance,
+  httpHeaderConformance,
+];
 
 /**
  * Builds the modern check context and runs it through the same shared
