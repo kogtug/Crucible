@@ -10,8 +10,14 @@
 export function validateCacheableResult(result: Record<string, unknown>): string[] {
   const problems: string[] = [];
 
-  if (result.resultType !== "complete" && result.resultType !== "input_required") {
-    problems.push(`resultType is ${JSON.stringify(result.resultType)}, expected "complete" or "input_required"`);
+  // resultType's own type in the schema is `"complete" | "input_required" | string`
+  // - deliberately open-ended, so extensions (e.g. Tasks, which returns
+  // resultType: "task") can define their own values without a core schema
+  // change. Rejecting anything other than the two core-documented literals
+  // would flag every extension-defined result as broken; the actual
+  // requirement is just that the field is present and a real string.
+  if (typeof result.resultType !== "string" || result.resultType.length === 0) {
+    problems.push(`resultType is ${JSON.stringify(result.resultType)}, expected a non-empty string`);
   }
 
   if (typeof result.ttlMs !== "number" || result.ttlMs < 0) {
@@ -24,3 +30,4 @@ export function validateCacheableResult(result: Record<string, unknown>): string
 
   return problems;
 }
+

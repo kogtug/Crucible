@@ -12,6 +12,21 @@ test("accepts 'input_required' as a resultType", () => {
   assert.deepEqual(problems, []);
 });
 
+test("accepts an extension-defined resultType value, not just the two core literals", () => {
+  // resultType's own type is "complete" | "input_required" | string -
+  // deliberately open so extensions can define their own values (e.g. the
+  // Tasks extension's "task"). A value this function doesn't recognize by
+  // name is not, by itself, a conformance problem.
+  const problems = validateCacheableResult({ resultType: "task", ttlMs: 1000, cacheScope: "public" });
+  assert.deepEqual(problems, []);
+});
+
+test("flags an empty-string resultType", () => {
+  const problems = validateCacheableResult({ resultType: "", ttlMs: 1000, cacheScope: "public" });
+  assert.equal(problems.length, 1);
+  assert.match(problems[0], /resultType/);
+});
+
 test("flags a missing resultType", () => {
   const problems = validateCacheableResult({ ttlMs: 1000, cacheScope: "public" });
   assert.equal(problems.length, 1);
