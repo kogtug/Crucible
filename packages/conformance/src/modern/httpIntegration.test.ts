@@ -35,7 +35,7 @@ test("modern checks all pass against the stateless fixture's default mode, over 
   const results = await scanStatelessHttp();
   const failed = results.filter((r) => r.status === "fail");
   assert.deepEqual(failed, [], `expected no failures, got: ${JSON.stringify(failed, null, 2)}`);
-  assert.equal(results.length, 3); // discover, tools/list, http-header-conformance
+  assert.equal(results.length, 5); // discover, tools/list, http-header-conformance, task-creation, task-capability
 });
 
 test("http-header-conformance fails when the server skips header validation", async () => {

@@ -33,44 +33,71 @@ async function scanStatelessFixture(breakMode?: string): Promise<CheckResult[]> 
   }
 }
 
+const CACHEABLE_RESULT_CHECK_IDS = ["discover-conformance", "stateless-tools-list-conformance"];
+
 test("modern checks all pass or warn (never fail) against the stateless fixture's default (non-broken) mode", async () => {
   const results = await scanStatelessFixture();
   const failed = results.filter((r) => r.status === "fail");
   assert.deepEqual(failed, [], `expected no failures, got: ${JSON.stringify(failed, null, 2)}`);
-  assert.equal(results.length, 3); // discover, tools/list, http-header-conformance
+  assert.equal(results.length, 5); // discover, tools/list, http-header, task-creation, task-capability
   // http-header-conformance doesn't apply over stdio - see its own test in
   // httpIntegration.test.ts for the case where it actually runs.
   assert.equal(results.find((r) => r.id === "http-header-conformance")?.status, "warn");
+  assert.equal(results.find((r) => r.id === "task-creation-conformance")?.status, "pass");
+  assert.equal(results.find((r) => r.id === "task-capability-conformance")?.status, "pass");
 });
 
-test("CRUCIBLE_BREAK=missing-result-type is caught by the two checks it applies to", async () => {
+test("CRUCIBLE_BREAK=missing-result-type is caught by the two checks it applies to, and no others", async () => {
   const results = await scanStatelessFixture("missing-result-type");
-  const applicable = results.filter((r) => r.id !== "http-header-conformance");
-  assert.equal(applicable.length, 2);
-  for (const r of applicable) {
+  const affected = results.filter((r) => CACHEABLE_RESULT_CHECK_IDS.includes(r.id));
+  assert.equal(affected.length, 2);
+  for (const r of affected) {
     assert.equal(r.status, "fail");
     assert.match(r.message, /resultType/);
   }
+  // This break mode only touches server/discover and tools/list's own
+  // cache fields - the Tasks checks build their results differently and
+  // shouldn't be affected just because an unrelated check is broken.
+  assert.equal(results.find((r) => r.id === "task-creation-conformance")?.status, "pass");
+  assert.equal(results.find((r) => r.id === "task-capability-conformance")?.status, "pass");
 });
 
-test("CRUCIBLE_BREAK=bad-cache-scope is caught by the two checks it applies to", async () => {
+test("CRUCIBLE_BREAK=bad-cache-scope is caught by the two checks it applies to, and no others", async () => {
   const results = await scanStatelessFixture("bad-cache-scope");
-  const applicable = results.filter((r) => r.id !== "http-header-conformance");
-  assert.equal(applicable.length, 2);
-  for (const r of applicable) {
+  const affected = results.filter((r) => CACHEABLE_RESULT_CHECK_IDS.includes(r.id));
+  assert.equal(affected.length, 2);
+  for (const r of affected) {
     assert.equal(r.status, "fail");
     assert.match(r.message, /cacheScope/);
   }
+  assert.equal(results.find((r) => r.id === "task-creation-conformance")?.status, "pass");
 });
 
-test("CRUCIBLE_BREAK=negative-ttl is caught by the two checks it applies to", async () => {
+test("CRUCIBLE_BREAK=negative-ttl is caught by the two checks it applies to, and no others", async () => {
   const results = await scanStatelessFixture("negative-ttl");
-  const applicable = results.filter((r) => r.id !== "http-header-conformance");
-  assert.equal(applicable.length, 2);
-  for (const r of applicable) {
+  const affected = results.filter((r) => CACHEABLE_RESULT_CHECK_IDS.includes(r.id));
+  assert.equal(affected.length, 2);
+  for (const r of affected) {
     assert.equal(r.status, "fail");
     assert.match(r.message, /ttlMs/);
   }
+  assert.equal(results.find((r) => r.id === "task-creation-conformance")?.status, "pass");
+});
+
+test("CRUCIBLE_BREAK=task-without-capability is caught by task-capability-conformance, and no others", async () => {
+  const results = await scanStatelessFixture("task-without-capability");
+  assert.equal(results.find((r) => r.id === "task-capability-conformance")?.status, "fail");
+  assert.equal(results.find((r) => r.id === "task-creation-conformance")?.status, "pass");
+  assert.equal(results.find((r) => r.id === "discover-conformance")?.status, "pass");
+  assert.equal(results.find((r) => r.id === "stateless-tools-list-conformance")?.status, "pass");
+});
+
+test("CRUCIBLE_BREAK=task-resulttype-not-complete is caught by task-creation-conformance, and no others", async () => {
+  const results = await scanStatelessFixture("task-resulttype-not-complete");
+  const creation = results.find((r) => r.id === "task-creation-conformance");
+  assert.equal(creation?.status, "fail");
+  assert.match(creation!.message, /resultType/);
+  assert.equal(results.find((r) => r.id === "task-capability-conformance")?.status, "pass");
 });
 
 test("the probe classifies the Phase 1 SDK-based fixture as legacy, not modern", async () => {
