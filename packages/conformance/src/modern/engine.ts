@@ -5,11 +5,15 @@ import type { ModernCheck } from "./types.js";
 import { discoverConformance } from "./checks/discover.js";
 import { statelessToolsListConformance } from "./checks/toolsList.js";
 import { httpHeaderConformance } from "./checks/httpHeaders.js";
+import { taskCreationConformance } from "./checks/taskCreation.js";
+import { taskCapabilityConformance } from "./checks/taskCapability.js";
 
 export const defaultModernChecks: ModernCheck[] = [
   discoverConformance,
   statelessToolsListConformance,
   httpHeaderConformance,
+  taskCreationConformance,
+  taskCapabilityConformance,
 ];
 
 /**
