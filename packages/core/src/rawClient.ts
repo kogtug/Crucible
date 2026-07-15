@@ -48,6 +48,18 @@ export interface RawRequestOptions {
    * not-yet-built thing.
    */
   headerOverrides?: Record<string, string>;
+  /**
+   * HTTP targets only, ignored for stdio: sets the `Mcp-Name` header,
+   * required by SEP-2243 for `tools/call` (the tool name), `resources/read`
+   * (the URI), `prompts/get` (the prompt name) - and, per the Tasks
+   * extension (SEP-2663), for `tasks/get` / `tasks/update` / `tasks/cancel`
+   * (the taskId, so a load balancer can route to the server instance
+   * holding that task's state). Auto-computed the same way Mcp-Method is;
+   * a caller that knows this request needs one passes it, rather than
+   * every check reaching for headerOverrides to get a header the spec
+   * expects to see honestly, not as an override.
+   */
+  mcpName?: string;
 }
 
 /**
@@ -219,6 +231,9 @@ export class RawJsonRpcClient {
       Accept: "application/json, text/event-stream",
       "Mcp-Method": method,
     };
+    if (options.mcpName !== undefined) {
+      headers["Mcp-Name"] = options.mcpName;
+    }
     const protocolVersion = options.meta?.["io.modelcontextprotocol/protocolVersion"];
     if (typeof protocolVersion === "string") {
       headers["MCP-Protocol-Version"] = protocolVersion;
