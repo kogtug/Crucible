@@ -52,7 +52,7 @@ that term doesn't exist in it - the real mechanism is a JSON-RPC method,
 - [x] CLI auto-detects era and runs the matching check family; `--format json` for CI
 - [x] 18 tests total, including true-positive *and* true-negative coverage for every new check
 - [x] Streamable HTTP transport + its header requirements (SEP-2243) — delivered in Phase 4, below
-- [ ] `io.modelcontextprotocol/tasks` extension conformance — deferred
+- [x] `io.modelcontextprotocol/tasks` extension conformance — delivered in Phase 5, below (core flow only)
 - [ ] MRTR (`input_required`) round-trip conformance — accepted as valid, not yet exercised end to end
 
 **Phase 3 — chaos/resilience engine (stdio, 2 scenarios)**
@@ -80,13 +80,32 @@ that term doesn't exist in it - the real mechanism is a JSON-RPC method,
       (`chaos` stays stdio-only for now, and says so clearly if you try otherwise)
 - [x] 36 tests total, including real background-process smoke tests in CI,
       not just in-process ones
-- [ ] SSE response mode, `Mcp-Name` header conformance, chaos-testing over HTTP — deferred, see `docs/architecture.md`
+- [x] `Mcp-Name` header conformance — delivered in Phase 5, below (for `tools/call` / `tasks/get`)
+- [ ] SSE response mode, chaos-testing over HTTP — still deferred, see `docs/architecture.md`
+
+**Phase 5 — Tasks extension (SEP-2663) core flow**
+- [x] `tools/call` implemented for the first time (`echo`, and the new task-augmentable `slow_echo`)
+- [x] `tasks/get` create-and-poll flow: `CreateTaskResult` (`resultType: "task"`) →
+      poll → terminal `GetTaskResult` (`resultType: "complete"`)
+- [x] `taskCreationConformance`, `taskCapabilityConformance` — the second proves a server
+      doesn't create a task for a client that never declared support
+- [x] `Mcp-Name` header support (SEP-2243) for `tools/call` and `tasks/get`
+- [x] `createDispatcher()` — per-server-instance task store, replacing a bare module-level
+      dispatch function, so tests creating multiple server instances don't leak task state between them
+- [x] A real bug fixed in already-shipped code, found by reading the spec before building on
+      it: `resultType` is an open string union (`"complete" | "input_required" | string`), not
+      limited to two literals — Tasks' `resultType: "task"` would have failed conformance
+      against Crucible's own check. Fixed in its own commit, own regression test, before this
+      phase's feature work — see `docs/architecture.md`
+- [x] 40 tests total
+- [ ] `tasks/update`, `tasks/cancel`, `notifications/tasks`, TTL expiry, the stable
+      (2025-11-25) version of Tasks — all deferred, see `docs/architecture.md`
 
 **Later phases**
-- [ ] Phase 5: LLM-assisted adversarial test-case generation;
-      `io.modelcontextprotocol/tasks` extension conformance (deferred from Phase 2, see `docs/architecture.md`)
-- [ ] Phase 6: report dashboard + shareable badge
-- [ ] Phase 7: GitHub Action, SARIF export, case studies against real open-source
+- [ ] Phase 6: LLM-assisted adversarial test-case generation (needs an Anthropic API key
+      wired into wherever this runs — not available while building this, see `docs/architecture.md`)
+- [ ] Phase 7: report dashboard + shareable badge
+- [ ] Phase 8: GitHub Action, SARIF export, case studies against real open-source
       MCP servers (with permission)
 
 ## Quickstart
@@ -95,9 +114,9 @@ that term doesn't exist in it - the real mechanism is a JSON-RPC method,
 npm install
 npm run build
 npm run scan:basic       # legacy (initialize-based) fixture, over stdio
-npm run scan:stateless   # modern (draft 2026-07-28, discover-based) fixture, over stdio
+npm run scan:stateless   # modern (draft 2026-07-28, discover-based) fixture, over stdio - includes Tasks
 node packages/cli/dist/index.js chaos -- node packages/fixtures/stateless-server/dist/index.js
-npm test                 # 36 tests: unit + real end-to-end integration, every era/transport/scenario
+npm test                 # 40 tests: unit + real end-to-end integration, every era/transport/scenario
 ```
 
 Or over real Streamable HTTP, in two terminals:
@@ -118,6 +137,13 @@ CRUCIBLE_BREAK=bad-cache-scope npm run build \
      -- env CRUCIBLE_BREAK=bad-cache-scope node packages/fixtures/stateless-server/dist/index.js
 ```
 
+Or watch the Tasks extension get caught returning a task nobody asked for:
+
+```bash
+node packages/cli/dist/index.js scan --format json \
+  -- env CRUCIBLE_BREAK=task-without-capability node packages/fixtures/stateless-server/dist/index.js
+```
+
 ## Repository layout
 
 ```
@@ -127,7 +153,8 @@ packages/
                         over stdio or Streamable HTTP via the shared Target type
   conformance/         spec-referenced checks + the engines that run them
                         (legacy checks in checks/, modern checks in modern/,
-                        including the HTTP-only httpHeaderConformance)
+                        including the HTTP-only httpHeaderConformance and the
+                        Tasks extension checks)
   chaos/               fault-injection scenarios + four-tier resilience scoring
                         (stdio only for now - see docs/architecture.md)
   cli/                 `crucible` command-line tool (scan, chaos)
@@ -137,10 +164,13 @@ packages/
                          createEchoServer.ts
     stateless-server/   well-behaved modern (hand-rolled) reference server -
                          index.ts (stdio) and httpServer.ts (HTTP) share
-                         handlers.ts, each with their own CRUCIBLE_BREAK modes
+                         handlers.ts (including the Tasks extension's
+                         tools/call + tasks/get), each with their own
+                         CRUCIBLE_BREAK modes
 docs/
   architecture.md       design decisions: the two-protocol-era split, the
-                         chaos engine's verdict system, the HTTP transport design
+                         chaos engine's verdict system, the HTTP transport
+                         design, the Tasks extension
 FINDINGS.md             primary-source-verified conformance/robustness findings
 ```
 

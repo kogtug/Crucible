@@ -122,6 +122,70 @@ create two servers with different break modes in the same process, since
 the constant had already been fixed at import time. Found by testing that
 exact scenario, not by inspection.
 
+## Tasks extension
+
+Tasks exists in two, meaningfully different forms, discovered by reading
+both rather than assuming the newer one was a small revision of the older
+one: it shipped as a *core protocol* feature in the stable 2025-11-25 spec
+(`docs/specification/2025-11-25/basic/utilities/tasks.mdx`, connection
+-level capability negotiation during `initialize`, a separate blocking
+`tasks/result` call), and the draft reframes it as an opt-in *extension*
+(SEP-2663, `io.modelcontextprotocol/tasks`) with a different wire shape:
+`tasks/get` alone returns the result once a task is terminal - there's no
+separate `tasks/result` - and capability is declared per-request in `_meta`
+rather than once at connection time, matching the same stateless
+philosophy as everything else in the modern era. Crucible implements only
+the draft/extension version. The stable version is a real, currently
+-shippable feature some servers already support, but it belongs to the
+protocol generation this whole project is *not* the reference-testing
+target for, and building both would have meant two Task implementations
+for one milestone.
+
+Even within the draft extension, this phase covers only the core
+create-and-poll happy path: declare the capability, call a task
+-augmentable tool, get back a `CreateTaskResult` (`resultType: "task"`),
+poll `tasks/get` until terminal, confirm the terminal response switches to
+`resultType: "complete"`. `tasks/update` (the mid-flight `input_required`
+flow), `tasks/cancel`, and `notifications/tasks` (which needs
+`subscriptions/listen`, itself unbuilt) are all real parts of the
+extension and are deliberately not attempted here - see "Deferred, on
+purpose".
+
+**A second bug, found by reading the schema before building on it.**
+`validateCacheableResult` (Phase 2) rejected any `resultType` other than
+`"complete"` or `"input_required"` - which would have flagged every
+correctly-implemented task as broken, since Tasks returns `resultType:
+"task"`. Re-reading `schema/draft/schema.ts` while researching this phase
+turned up the actual type: `ResultType = "complete" | "input_required" |
+string` - deliberately open so extensions can define their own values.
+Fixed in its own commit, with its own regression test, before any of the
+Tasks-specific code in this phase was written - see that commit's message
+for the full reasoning, and FINDINGS.md-style diligence applied to
+Crucible's own code, not just external servers.
+
+**The task store is per-dispatcher, not per-module.** `handlers.ts`
+exports `createDispatcher()` rather than a bare `dispatch` function
+precisely because Tasks needs somewhere to keep task state between the
+`tools/call` that creates one and the `tasks/get` calls that poll it. A
+module-level `Map` would work for a single running server, but every
+`createStatelessHttpServer()` call in the test suite runs in the same
+Node process - a shared, module-level store would leak task IDs between
+what are meant to be independent server instances in tests, even though
+it would never surface as a bug in production (one process really is one
+server there). `createDispatcher()` gives each server instance, in
+production or in a test, its own store.
+
+**`Mcp-Name` conformance is exercised, but not adversarially tested yet.**
+SEP-2663 requires the same `Mcp-Name` header SEP-2243 defined for
+`tools/call` to also carry the `taskId` on `tasks/get` (so a load balancer
+can route follow-up polls to the right server instance). Crucible's own
+client sends it correctly and the fixture validates it correctly - proven
+by `taskCreationConformance` passing at all over HTTP, since a wrong
+header there would 400 - but there's no dedicated check that deliberately
+sends a mismatched `Mcp-Name` to `tasks/get` the way `httpHeaderConformance`
+does for `tools/list`. That's a reasonable next increment, not a gap in
+what's claimed to work here.
+
 ## Why the fixture servers are built differently
 
 `fixture-basic-server` is built on `@modelcontextprotocol/sdk` because
@@ -223,7 +287,8 @@ shouldn't require touching behavior, or the tests that pin it.
 - **SEP-2575** - removes `initialize`; adds per-request `_meta` versioning and `server/discover`.
 - **SEP-2549** - `CacheableResult`: required `ttlMs` + `cacheScope` on list/read results.
 - **SEP-2322** - required `resultType` on every result; Multi Round-Trip Requests.
-- **SEP-2243** - required `Mcp-Method` / `MCP-Protocol-Version` headers on Streamable HTTP, implemented in Phase 4 (`Mcp-Name`, which only applies to `tools/call` / `resources/read` / `prompts/get`, is still deferred - see below, none of Crucible's fixtures implement those methods yet).
+- **SEP-2243** - required `Mcp-Method` / `MCP-Protocol-Version` headers on Streamable HTTP (Phase 4); `Mcp-Name` implemented for `tools/call` and `tasks/get` (this phase) - still not exercised for `resources/read` / `prompts/get`, which no fixture implements yet.
+- **SEP-2663** - the Tasks extension: capability negotiation, `CreateTaskResult`, and the `tasks/get` create-and-poll flow (this phase). `tasks/update`, `tasks/cancel`, and `notifications/tasks` are not - see "Deferred, on purpose".
 
 ## Deferred, on purpose
 
@@ -238,15 +303,20 @@ shouldn't require touching behavior, or the tests that pin it.
   "Malformed input" means something different for a persistent stdio
   stream versus a single self-contained POST body, and that difference
   deserves its own design pass rather than a same-day retrofit.
-- **`Mcp-Name` header conformance** (SEP-2243) - required only for
-  `tools/call`, `resources/read`, and `prompts/get`, none of which any
-  fixture in this repo implements yet. `httpHeaderConformance` covers
-  `Mcp-Method` and `MCP-Protocol-Version`, which apply to every request.
-- **The `io.modelcontextprotocol/tasks` extension.** Genuinely async task
-  polling is a bigger surface than one milestone's worth, and the official
-  SDK marks its own experimental Tasks support as unstable right now - this
-  needs more of the spec text than the discovery/caching rules did, and
-  deserves its own milestone rather than a rushed check.
+- **`Mcp-Name` header conformance for `resources/read` and `prompts/get`**
+  (SEP-2243) - implemented for `tools/call` and `tasks/get` (this phase),
+  since those are the methods Crucible's fixtures now actually have, but
+  no fixture implements the other two methods yet, so there's nothing to
+  validate the header against for them.
+- **Most of the `io.modelcontextprotocol/tasks` extension.** The core
+  create-and-poll happy path is implemented (see "Tasks extension",
+  above) - `tasks/update` (the mid-flight `input_required` flow),
+  `tasks/cancel`, `notifications/tasks` (needs `subscriptions/listen`,
+  itself unbuilt), TTL expiry, and the stable (non-draft) 2025-11-25
+  version of Tasks are all still deferred. A dedicated adversarial check
+  for `tasks/get`'s `Mcp-Name` header (mirroring `httpHeaderConformance`'s
+  approach for `tools/list`) is also a reasonable next increment rather
+  than something claimed to work here.
 - **MRTR (`InputRequiredResult`) conformance.** `validateCacheableResult`
   already accepts `resultType: "input_required"` as valid, but nothing yet
   exercises the actual multi-round-trip retry flow end to end.

@@ -47,3 +47,11 @@ jobs:
           sleep 1
           node packages/cli/dist/index.js scan http://localhost:8080/
           node packages/cli/dist/index.js scan http://localhost:8081/
+
+      - name: Smoke-test that the Tasks capability check catches a real violation (tracking only)
+        # Exits 1 by design: CRUCIBLE_BREAK=task-without-capability makes the
+        # fixture return a task to a client that never asked for one. Kept
+        # non-gating for the same reason as the legacy chaos step above -
+        # this is a deliberately-broken fixture mode proving a check works,
+        # not a regression to fail the build over.
+        run: node packages/cli/dist/index.js scan -- env CRUCIBLE_BREAK=task-without-capability node packages/fixtures/stateless-server/dist/index.js || true
