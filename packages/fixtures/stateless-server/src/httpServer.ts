@@ -3,8 +3,10 @@
  * server/discover and tools/list logic as index.ts (stdio), via the shared
  * handlers.ts, plus the HTTP-specific header validation the draft spec
  * requires (SEP-2243): every POST must carry an `Mcp-Method` header
- * mirroring the body's `method`, and an `MCP-Protocol-Version` header
- * mirroring the body's `_meta` protocol version. A mismatch is a
+ * mirroring the body's `method`, an `MCP-Protocol-Version` header
+ * mirroring the body's `_meta` protocol version, and - for `tools/call`
+ * and (per the Tasks extension, SEP-2663) `tasks/get` - an `Mcp-Name`
+ * header mirroring the tool name or taskId respectively. A mismatch is a
  * `HeaderMismatch` (-32020) error, not something to silently let through.
  *
  * Only the single-JSON-response path is implemented - the draft spec also
@@ -16,13 +18,12 @@
  * CRUCIBLE_BREAK=skip-header-validation disables the header checks
  * described above (everything else about the response stays correct), so
  * httpHeaderConformance has a real negative case to catch, not just a
- * positive one. The conformance break modes from handlers.ts
- * (missing-result-type, bad-cache-scope, negative-ttl) work here too, via
- * the same shared dispatch().
+ * positive one. The conformance and Tasks break modes from handlers.ts
+ * work here too, via the same shared dispatcher.
  */
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { pathToFileURL } from "node:url";
-import { dispatch } from "./handlers.js";
+import { createDispatcher } from "./handlers.js";
 
 const HEADER_MISMATCH = -32020;
 
@@ -54,6 +55,13 @@ function headerValue(req: IncomingMessage, name: string): string | undefined {
   return Array.isArray(value) ? value[0] : value;
 }
 
+/** The Mcp-Name header's expected value for this request, or undefined if the method doesn't need one. Per SEP-2243 (tools/call) and SEP-2663 (tasks/get, mirrored for consistency even though this fixture doesn't implement tasks/update or tasks/cancel). */
+function expectedMcpName(method: string | undefined, params: Record<string, unknown> | undefined): string | undefined {
+  if (method === "tools/call") return typeof params?.name === "string" ? params.name : undefined;
+  if (method === "tasks/get") return typeof params?.taskId === "string" ? params.taskId : undefined;
+  return undefined;
+}
+
 /**
  * Exported so tests can start this in-process on an OS-assigned port
  * (`.listen(0)`) instead of spawning a child process. `breakMode` is a
@@ -64,8 +72,16 @@ function headerValue(req: IncomingMessage, name: string): string | undefined {
  * in-process tests that construct this server more than once with
  * different modes in the same process - found by actually testing that
  * exact scenario, not by inspection.
+ *
+ * Each call gets its own dispatcher (and so its own Tasks extension task
+ * store, via createDispatcher() in handlers.ts) - tests routinely create
+ * more than one of these in the same process, and a shared, module-level
+ * store would otherwise leak task state between what are meant to be
+ * independent server instances.
  */
 export function createStatelessHttpServer(breakMode: string = process.env.CRUCIBLE_BREAK ?? ""): Server {
+  const dispatch = createDispatcher();
+
   return createServer(async (req, res) => {
     if (req.method !== "POST") {
       writeJson(res, 405, { jsonrpc: "2.0", id: null, error: { code: -32601, message: "Only POST is supported on this endpoint" } });
@@ -100,6 +116,15 @@ export function createStatelessHttpServer(breakMode: string = process.env.CRUCIB
         );
         return;
       }
+
+      const wantedName = expectedMcpName(body.method, body.params);
+      if (wantedName !== undefined) {
+        const mcpName = headerValue(req, "Mcp-Name");
+        if (mcpName !== wantedName) {
+          writeHeaderMismatch(res, id, `Mcp-Name header ('${mcpName ?? "(missing)"}') does not match the expected value ('${wantedName}')`);
+          return;
+        }
+      }
     }
 
     if (id === null) {
@@ -109,7 +134,7 @@ export function createStatelessHttpServer(breakMode: string = process.env.CRUCIB
       return;
     }
 
-    const { result, error } = dispatch(breakMode, body.method, body.params);
+    const { result, error } = await dispatch(breakMode, body.method, body.params);
     if (error) {
       writeJson(res, 200, { jsonrpc: "2.0", id, error });
     } else {
@@ -128,4 +153,5 @@ if (isMain) {
     console.error(`crucible-fixture-stateless (HTTP) listening on http://localhost:${port}/`);
   });
 }
+
 
