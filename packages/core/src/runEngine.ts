@@ -27,7 +27,7 @@ export interface Runnable<Ctx, Result> {
  */
 export async function runEngine<Ctx, Result>(
   ctx: Ctx,
-  items: Array<Runnable<Ctx, Result>>,
+  items: Runnable<Ctx, Result>[],
   onThrow: (item: Runnable<Ctx, Result>, err: unknown) => Result,
 ): Promise<Result[]> {
   const results: Result[] = [];

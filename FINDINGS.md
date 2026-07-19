@@ -52,9 +52,9 @@ Section 7 ("Examples") shows this applied to malformed input specifically:
 ```
 
 And Section 6 ("Batch") contains the one place the spec is unambiguously
-explicit about a parse failure specifically: *"If the batch rpc call itself
+explicit about a parse failure specifically: _"If the batch rpc call itself
 fails to be recognized as \[a\] valid JSON or as an Array with at least one
-value, the response from the Server MUST be a single Response object"* (a
+value, the response from the Server MUST be a single Response object"_ (a
 -32700 error).
 
 **MCP base protocol** (`docs/specification/2025-11-25/basic/index.mdx`,
@@ -76,9 +76,9 @@ textual support for "yes, reply."
 > server's `stdin` that is not a valid MCP message.
 
 This is the line I originally (and imprecisely) cited as the spec backing
-for this scenario. On a close re-read, it is a constraint on *what a
-server emits* (never anything invalid) and *what a well-behaved client
-sends* - it does not say what a server must do upon *receiving* something
+for this scenario. On a close re-read, it is a constraint on _what a
+server emits_ (never anything invalid) and _what a well-behaved client
+sends_ - it does not say what a server must do upon _receiving_ something
 invalid. Silence is not "an invalid message," so responding with nothing
 does not, by itself, violate this line. Using it as the specRef for "the
 server should have replied" was imprecise, and I've corrected it in code
@@ -94,14 +94,17 @@ Traced directly in the installed package
 (`node_modules/@modelcontextprotocol/sdk`, version confirmed below):
 
 `shared/stdio.js`:
+
 ```js
 export function deserializeMessage(line) {
-    return JSONRPCMessageSchema.parse(JSON.parse(line));
+  return JSONRPCMessageSchema.parse(JSON.parse(line));
 }
 ```
+
 No try/catch here - a malformed line throws a plain `SyntaxError` out of `JSON.parse`.
 
 `server/stdio.js`, `processReadBuffer()`:
+
 ```js
 processReadBuffer() {
     while (true) {
@@ -137,7 +140,7 @@ reading this exact package, not an older cached copy).
 [`modelcontextprotocol/typescript-sdk#244`](https://github.com/modelcontextprotocol/typescript-sdk/issues/244)
 reports the same code path from the opposite direction: a server author's
 stray `console.log()` inside a tool handler writes a plain-text line to
-stdout, and the *client's* `deserializeMessage` throws the same unguarded
+stdout, and the _client's_ `deserializeMessage` throws the same unguarded
 `SyntaxError` trying to parse it. A maintainer's reply frames that
 specific case as a server-authoring mistake (use `console.error()` /
 stderr for logging, per the docs) rather than committing to change
@@ -146,7 +149,7 @@ stderr for logging, per the docs) rather than committing to change
 That framing doesn't fully cover Crucible's scenario, though: #244 is about
 a well-behaved client receiving accidentally-malformed output from a
 server the developer controls. Crucible's scenario is about a server
-receiving deliberately-malformed input from a client it does *not*
+receiving deliberately-malformed input from a client it does _not_
 control - which is exactly the situation where automatically returning a
 well-formed `-32700` matters most, since "fix your own code" isn't an
 available remedy against someone else's client. I'm treating this as a

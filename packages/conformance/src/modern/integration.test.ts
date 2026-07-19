@@ -96,12 +96,16 @@ test("CRUCIBLE_BREAK=task-resulttype-not-complete is caught by task-creation-con
   const results = await scanStatelessFixture("task-resulttype-not-complete");
   const creation = results.find((r) => r.id === "task-creation-conformance");
   assert.equal(creation?.status, "fail");
-  assert.match(creation!.message, /resultType/);
+  assert.match(creation.message, /resultType/);
   assert.equal(results.find((r) => r.id === "task-capability-conformance")?.status, "pass");
 });
 
 test("the probe classifies the Phase 1 SDK-based fixture as legacy, not modern", async () => {
-  const client = new RawJsonRpcClient({ kind: "stdio", command: "node", args: [legacyServerEntry] });
+  const client = new RawJsonRpcClient({
+    kind: "stdio",
+    command: "node",
+    args: [legacyServerEntry],
+  });
   await client.connect();
   try {
     const probe = await probeServerEra(client, "2026-07-28");

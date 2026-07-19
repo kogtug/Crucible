@@ -20,7 +20,11 @@ test("default checks all pass against the basic reference fixture server", async
     const results = await runChecks(harness);
     const failed = results.filter((r) => r.status === "fail");
 
-    assert.deepEqual(failed, [], `expected no failing checks, got: ${JSON.stringify(failed, null, 2)}`);
+    assert.deepEqual(
+      failed,
+      [],
+      `expected no failing checks, got: ${JSON.stringify(failed, null, 2)}`,
+    );
     assert.equal(results.length, 2);
   } finally {
     await harness.close();

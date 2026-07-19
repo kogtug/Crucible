@@ -18,7 +18,8 @@ const HEADER_MISMATCH = -32020;
 export const httpHeaderConformance: ModernCheck = {
   id: "http-header-conformance",
   title: "Rejects a mismatched Mcp-Method header with a HeaderMismatch error",
-  specRef: "MCP draft spec: Streamable HTTP transport, Standard Request Headers + Server Validation (SEP-2243)",
+  specRef:
+    "MCP draft spec: Streamable HTTP transport, Standard Request Headers + Server Validation (SEP-2243)",
 
   async run(ctx: ModernCheckContext): Promise<CheckResult> {
     if (ctx.client.getTarget().kind !== "http") {
@@ -26,7 +27,8 @@ export const httpHeaderConformance: ModernCheck = {
         id: this.id,
         title: this.title,
         status: "warn",
-        message: "Target is not an HTTP endpoint - this check only applies to the Streamable HTTP transport.",
+        message:
+          "Target is not an HTTP endpoint - this check only applies to the Streamable HTTP transport.",
         specRef: this.specRef,
       };
     }
@@ -53,7 +55,8 @@ export const httpHeaderConformance: ModernCheck = {
       id: this.id,
       title: this.title,
       status: "pass",
-      message: "Correctly rejected a mismatched Mcp-Method header with a -32020 HeaderMismatch error.",
+      message:
+        "Correctly rejected a mismatched Mcp-Method header with a -32020 HeaderMismatch error.",
       specRef: this.specRef,
     };
   },

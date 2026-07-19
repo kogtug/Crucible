@@ -40,4 +40,3 @@ export async function runModernChecks(
     specRef: check.specRef,
   }));
 }
-

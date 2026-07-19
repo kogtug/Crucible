@@ -12,13 +12,19 @@ export const discoverConformance: ModernCheck = {
     const problems = validateCacheableResult(result);
 
     if (!Array.isArray(result.supportedVersions) || result.supportedVersions.length === 0) {
-      problems.push("supportedVersions is missing or empty - clients have nothing to negotiate against");
+      problems.push(
+        "supportedVersions is missing or empty - clients have nothing to negotiate against",
+      );
     }
     if (typeof result.capabilities !== "object" || result.capabilities === null) {
       problems.push("capabilities is missing or not an object");
     }
     const serverInfo = result.serverInfo as { name?: unknown; version?: unknown } | undefined;
-    if (!serverInfo || typeof serverInfo.name !== "string" || typeof serverInfo.version !== "string") {
+    if (
+      !serverInfo ||
+      typeof serverInfo.name !== "string" ||
+      typeof serverInfo.version !== "string"
+    ) {
       problems.push("serverInfo is missing a string name/version");
     }
 

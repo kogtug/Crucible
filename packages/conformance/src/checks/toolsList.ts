@@ -25,7 +25,8 @@ export const toolsListSchema: Check = {
         id: this.id,
         title: this.title,
         status: "warn",
-        message: "Server did not advertise the 'tools' capability during initialize - skipping tools/list checks.",
+        message:
+          "Server did not advertise the 'tools' capability during initialize - skipping tools/list checks.",
         specRef: this.specRef,
       };
     }
@@ -49,7 +50,9 @@ export const toolsListSchema: Check = {
         continue;
       }
       if (tool.inputSchema && (tool.inputSchema as { type?: string }).type !== "object") {
-        problems.push(`tool '${tool.name}' has an inputSchema whose top-level type is not 'object'`);
+        problems.push(
+          `tool '${tool.name}' has an inputSchema whose top-level type is not 'object'`,
+        );
       }
     }
 

@@ -30,4 +30,3 @@ export async function runChaosScenarios(
     specRef: scenario.specRef,
   }));
 }
-

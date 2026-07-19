@@ -105,7 +105,9 @@ function printChaosHumanReport(report: ChaosReport): void {
   console.log(`\nCrucible chaos: attacking ${report.target}\n`);
 
   for (const result of report.results) {
-    console.log(`${VERDICT_ICON[result.verdict]} [${result.verdict.toUpperCase()}] ${result.title}`);
+    console.log(
+      `${VERDICT_ICON[result.verdict]} [${result.verdict.toUpperCase()}] ${result.title}`,
+    );
     console.log(`   ${result.message}`);
     if (result.specRef) console.log(`   spec: ${result.specRef}`);
     console.log("");
@@ -274,7 +276,10 @@ program
       "Stdio targets only for now.",
   )
   .option("--format <type>", "output format: 'human' or 'json'", "human")
-  .argument("<command...>", "the command that launches the target server over stdio, e.g. `node server.js`")
+  .argument(
+    "<command...>",
+    "the command that launches the target server over stdio, e.g. `node server.js`",
+  )
   .action((commandParts: string[], options: { format: string }) => {
     return runCommand(
       options.format,
@@ -287,4 +292,3 @@ program
   });
 
 await program.parseAsync(process.argv);
-

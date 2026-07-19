@@ -12,7 +12,8 @@ export const malformedJsonResilience: ChaosScenario = {
     client.writeRawLine('{"jsonrpc": "2.0", "id": 1, method: tools/list, this is not valid json}');
     const response = await client.waitForNextRawResponse(3000);
 
-    const immediateResponseAcceptable = response !== null && isJsonRpcError(response) && response.error.code === -32700;
+    const immediateResponseAcceptable =
+      response !== null && isJsonRpcError(response) && response.error.code === -32700;
 
     const detail = !client.isAlive()
       ? "Sent one syntactically invalid line."
@@ -22,7 +23,10 @@ export const malformedJsonResilience: ChaosScenario = {
           ? "Correctly responded with a -32700 parse error, matching JSON-RPC 2.0's own worked example for this case."
           : `Responded, but not with a -32700 parse error: ${JSON.stringify(response)}`;
 
-    const { verdict, message } = await classifyResilience(client, { immediateResponseAcceptable, detail });
+    const { verdict, message } = await classifyResilience(client, {
+      immediateResponseAcceptable,
+      detail,
+    });
     return { id: this.id, title: this.title, verdict, message, specRef: this.specRef };
   },
 };

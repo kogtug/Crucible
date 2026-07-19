@@ -8,7 +8,8 @@ test("legacy checks all pass against the basic fixture over Streamable HTTP", as
   const server = createEchoHttpServer();
   await new Promise<void>((resolve) => server.listen(0, resolve));
   const address = server.address();
-  if (typeof address !== "object" || address === null) throw new Error("expected a bound TCP address");
+  if (typeof address !== "object" || address === null)
+    throw new Error("expected a bound TCP address");
 
   const harness = new McpHarness({ kind: "http", url: `http://localhost:${address.port}/` });
 

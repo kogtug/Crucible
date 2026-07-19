@@ -9,13 +9,13 @@ to talk to a server, not just new fields bolted onto the old flow - so
 Crucible has two parallel implementations rather than one that awkwardly
 branches partway through:
 
-| | Legacy (protocol versions through 2025-11-25) | Modern (draft, 2026-07-28) |
-|---|---|---|
-| Connection | `McpHarness` (`packages/core/src/harness.ts`), wraps the official SDK | `RawJsonRpcClient` (`packages/core/src/rawClient.ts`), hand-rolled |
-| Handshake | `initialize` / `notifications/initialized` | none - version/identity ride in `_meta` on every request |
-| Discovery | N/A | `server/discover` |
-| Checks | `packages/conformance/src/checks/*`, run by `runChecks` | `packages/conformance/src/modern/checks/*`, run by `runModernChecks` |
-| Reference fixture | `fixture-basic-server` (built on the SDK) | `fixture-stateless-server` (hand-rolled - the SDK doesn't speak this era yet) |
+|                   | Legacy (protocol versions through 2025-11-25)                         | Modern (draft, 2026-07-28)                                                    |
+| ----------------- | --------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| Connection        | `McpHarness` (`packages/core/src/harness.ts`), wraps the official SDK | `RawJsonRpcClient` (`packages/core/src/rawClient.ts`), hand-rolled            |
+| Handshake         | `initialize` / `notifications/initialized`                            | none - version/identity ride in `_meta` on every request                      |
+| Discovery         | N/A                                                                   | `server/discover`                                                             |
+| Checks            | `packages/conformance/src/checks/*`, run by `runChecks`               | `packages/conformance/src/modern/checks/*`, run by `runModernChecks`          |
+| Reference fixture | `fixture-basic-server` (built on the SDK)                             | `fixture-stateless-server` (hand-rolled - the SDK doesn't speak this era yet) |
 
 `@crucible/core` exports both connection types rather than one generic
 abstraction over both, on purpose. A generic that has to cover "sometimes
@@ -126,10 +126,10 @@ exact scenario, not by inspection.
 
 Tasks exists in two, meaningfully different forms, discovered by reading
 both rather than assuming the newer one was a small revision of the older
-one: it shipped as a *core protocol* feature in the stable 2025-11-25 spec
+one: it shipped as a _core protocol_ feature in the stable 2025-11-25 spec
 (`docs/specification/2025-11-25/basic/utilities/tasks.mdx`, connection
 -level capability negotiation during `initialize`, a separate blocking
-`tasks/result` call), and the draft reframes it as an opt-in *extension*
+`tasks/result` call), and the draft reframes it as an opt-in _extension_
 (SEP-2663, `io.modelcontextprotocol/tasks`) with a different wire shape:
 `tasks/get` alone returns the result once a task is terminal - there's no
 separate `tasks/result` - and capability is declared per-request in `_meta`
@@ -137,7 +137,7 @@ rather than once at connection time, matching the same stateless
 philosophy as everything else in the modern era. Crucible implements only
 the draft/extension version. The stable version is a real, currently
 -shippable feature some servers already support, but it belongs to the
-protocol generation this whole project is *not* the reference-testing
+protocol generation this whole project is _not_ the reference-testing
 target for, and building both would have meant two Task implementations
 for one milestone.
 
@@ -223,7 +223,7 @@ and scores how it degrades, using four tiers rather than pass/fail:
 - **degraded** - still alive and responsive afterward, but the immediate
   reaction wasn't what convention calls for (e.g. silently swallowing bad
   input instead of erroring on it).
-- **hung** - still alive, but stopped responding to *anything*, not just
+- **hung** - still alive, but stopped responding to _anything_, not just
   the fault - a genuinely different, worse failure mode than degraded.
 - **crashed** - the process exited as a direct result of the input.
 
@@ -269,7 +269,7 @@ modern engines and `@crucible/chaos`'s engine all contained the exact same
 loop: iterate a list of check-like things, run each against a shared
 context, catch anything that throws and turn it into a result instead of
 aborting the whole run. Phase 2's architecture notes deliberately argued
-*against* generalizing the legacy and modern engines together, on the
+_against_ generalizing the legacy and modern engines together, on the
 grounds that two instances of a pattern aren't enough to safely infer the
 right generalization from. Three identical copies is a different claim -
 at that point it's not a design choice being second-guessed, it's the same
@@ -327,6 +327,6 @@ shouldn't require touching behavior, or the tests that pin it.
   `onStdoutData`) - the same underlying gap as upstream issue
   `typescript-sdk#244`, just on Crucible's side of the connection instead
   of the SDK's. Noted, not yet fixed: the chaos engine's two current
-  scenarios both test a *server's* resilience to a misbehaving client, not
+  scenarios both test a _server's_ resilience to a misbehaving client, not
   a client's resilience to a misbehaving server, so this hasn't had a
   scenario forcing the issue yet either.

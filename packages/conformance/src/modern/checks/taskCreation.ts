@@ -1,7 +1,11 @@
 import { isJsonRpcError } from "@crucible/core";
 import type { ModernCheck, ModernCheckContext } from "../types.js";
 import type { CheckResult } from "../../types.js";
-import { serverAdvertisesTasks, tasksNotAdvertisedResult, TASKS_EXTENSION } from "../tasksExtension.js";
+import {
+  serverAdvertisesTasks,
+  tasksNotAdvertisedResult,
+  TASKS_EXTENSION,
+} from "../tasksExtension.js";
 
 const TASK_TOOL_NAME = "slow_echo";
 const MAX_POLLS = 20;
@@ -55,12 +59,17 @@ export const taskCreationConformance: ModernCheck = {
 
     const created = createResponse.result;
     const createProblems: string[] = [];
-    if (created.resultType !== "task") createProblems.push(`resultType is ${JSON.stringify(created.resultType)}, expected "task"`);
-    if (typeof created.taskId !== "string" || created.taskId.length === 0) createProblems.push("taskId is missing or not a non-empty string");
+    if (created.resultType !== "task")
+      createProblems.push(`resultType is ${JSON.stringify(created.resultType)}, expected "task"`);
+    if (typeof created.taskId !== "string" || created.taskId.length === 0)
+      createProblems.push("taskId is missing or not a non-empty string");
     if (created.status !== "working" && created.status !== "completed") {
-      createProblems.push(`status is ${JSON.stringify(created.status)}, expected "working" (or "completed", if it finished immediately)`);
+      createProblems.push(
+        `status is ${JSON.stringify(created.status)}, expected "working" (or "completed", if it finished immediately)`,
+      );
     }
-    if (typeof created.createdAt !== "string") createProblems.push("createdAt is missing or not a string");
+    if (typeof created.createdAt !== "string")
+      createProblems.push("createdAt is missing or not a string");
     if (typeof created.ttlMs !== "number") createProblems.push("ttlMs is missing or not a number");
 
     if (createProblems.length > 0) {

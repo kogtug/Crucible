@@ -17,7 +17,8 @@ export const unknownMethodResilience: ChaosScenario = {
       response = null; // timed out
     }
 
-    const immediateResponseAcceptable = response !== null && isJsonRpcError(response) && response.error.code === -32601;
+    const immediateResponseAcceptable =
+      response !== null && isJsonRpcError(response) && response.error.code === -32601;
 
     const detail =
       response === null
@@ -26,7 +27,10 @@ export const unknownMethodResilience: ChaosScenario = {
           ? "Correctly responded with a -32601 method-not-found error."
           : `Responded, but not with -32601: ${JSON.stringify(response)}`;
 
-    const { verdict, message } = await classifyResilience(client, { immediateResponseAcceptable, detail });
+    const { verdict, message } = await classifyResilience(client, {
+      immediateResponseAcceptable,
+      detail,
+    });
     return { id: this.id, title: this.title, verdict, message, specRef: this.specRef };
   },
 };

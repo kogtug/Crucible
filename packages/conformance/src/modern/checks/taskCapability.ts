@@ -25,7 +25,10 @@ export const taskCapabilityConformance: ModernCheck = {
 
     const response = await ctx.client.request("tools/call", {
       meta: { "io.modelcontextprotocol/protocolVersion": ctx.negotiatedVersion },
-      params: { name: TASK_TOOL_NAME, arguments: { message: "crucible-no-task-check", delayMs: 30 } },
+      params: {
+        name: TASK_TOOL_NAME,
+        arguments: { message: "crucible-no-task-check", delayMs: 30 },
+      },
       ...(ctx.client.getTarget().kind === "http" ? { mcpName: TASK_TOOL_NAME } : {}),
       timeoutMs: 5000,
     });
@@ -65,7 +68,8 @@ export const taskCapabilityConformance: ModernCheck = {
       id: this.id,
       title: this.title,
       status: "pass",
-      message: "Correctly returned an ordinary synchronous result rather than creating a task the client never asked for.",
+      message:
+        "Correctly returned an ordinary synchronous result rather than creating a task the client never asked for.",
       specRef: this.specRef,
     };
   },

@@ -27,7 +27,8 @@ export const handshakeConformance: Check = {
         id: this.id,
         title: this.title,
         status: "fail",
-        message: "Harness never reached a connected state - the initialize handshake did not complete.",
+        message:
+          "Harness never reached a connected state - the initialize handshake did not complete.",
         specRef: this.specRef,
       };
     }
@@ -35,12 +36,13 @@ export const handshakeConformance: Check = {
     const serverInfo = harness.getServerVersion();
     const capabilities = harness.getServerCapabilities();
 
-    if (!serverInfo || !serverInfo.name || !serverInfo.version) {
+    if (!serverInfo?.name || !serverInfo.version) {
       return {
         id: this.id,
         title: this.title,
         status: "fail",
-        message: "Server did not report a valid { name, version } serverInfo block during initialize.",
+        message:
+          "Server did not report a valid { name, version } serverInfo block during initialize.",
         specRef: this.specRef,
       };
     }

@@ -56,10 +56,17 @@ export function cacheFields(breakMode: string): Record<string, unknown> {
 }
 
 export function isKnownMethod(method: string | undefined): boolean {
-  return method === "server/discover" || method === "tools/list" || method === "tools/call" || method === "tasks/get";
+  return (
+    method === "server/discover" ||
+    method === "tools/list" ||
+    method === "tools/call" ||
+    method === "tasks/get"
+  );
 }
 
-function checkProtocolVersion(params: Record<string, unknown> | undefined): HandlerResult | undefined {
+function checkProtocolVersion(
+  params: Record<string, unknown> | undefined,
+): HandlerResult | undefined {
   const meta = (params?._meta ?? {}) as Record<string, unknown>;
   const requested = meta["io.modelcontextprotocol/protocolVersion"];
   if (requested !== PROTOCOL_VERSION) {
@@ -76,7 +83,10 @@ function checkProtocolVersion(params: Record<string, unknown> | undefined): Hand
 
 function clientDeclaresTasksExtension(params: Record<string, unknown> | undefined): boolean {
   const meta = (params?._meta ?? {}) as Record<string, unknown>;
-  const clientCapabilities = (meta["io.modelcontextprotocol/clientCapabilities"] ?? {}) as Record<string, unknown>;
+  const clientCapabilities = (meta["io.modelcontextprotocol/clientCapabilities"] ?? {}) as Record<
+    string,
+    unknown
+  >;
   const extensions = (clientCapabilities.extensions ?? {}) as Record<string, unknown>;
   return TASKS_EXTENSION in extensions;
 }
@@ -88,12 +98,16 @@ function handleDiscover(breakMode: string): HandlerResult {
       supportedVersions: [PROTOCOL_VERSION],
       capabilities: { tools: {}, extensions: { [TASKS_EXTENSION]: {} } },
       serverInfo: SERVER_INFO,
-      instructions: "Crucible's fixture for the draft 2026-07-28 stateless/discover-based protocol era.",
+      instructions:
+        "Crucible's fixture for the draft 2026-07-28 stateless/discover-based protocol era.",
     },
   };
 }
 
-function handleToolsList(breakMode: string, params: Record<string, unknown> | undefined): HandlerResult {
+function handleToolsList(
+  breakMode: string,
+  params: Record<string, unknown> | undefined,
+): HandlerResult {
   const versionError = checkProtocolVersion(params);
   if (versionError) return versionError;
 
@@ -118,7 +132,10 @@ function handleToolsList(breakMode: string, params: Record<string, unknown> | un
             type: "object",
             properties: {
               message: { type: "string" },
-              delayMs: { type: "number", description: "How long to wait before completing. Defaults to 50." },
+              delayMs: {
+                type: "number",
+                description: "How long to wait before completing. Defaults to 50.",
+              },
             },
             required: ["message"],
           },
@@ -159,7 +176,8 @@ async function handleToolsCall(
 
   const delayMs = typeof args.delayMs === "number" ? args.delayMs : 50;
   const clientWantsTasks = clientDeclaresTasksExtension(params);
-  const shouldCreateTask = breakMode === "task-without-capability" || (clientWantsTasks && breakMode !== "never-use-task");
+  const shouldCreateTask =
+    breakMode === "task-without-capability" || (clientWantsTasks && breakMode !== "never-use-task");
 
   if (!shouldCreateTask) {
     await new Promise((resolve) => setTimeout(resolve, delayMs));
@@ -217,7 +235,9 @@ function handleTasksGet(
   const taskId = params?.taskId;
   const record = typeof taskId === "string" ? taskStore.get(taskId) : undefined;
   if (!record) {
-    return { error: { code: -32602, message: `Invalid params: unknown taskId '${String(taskId)}'` } };
+    return {
+      error: { code: -32602, message: `Invalid params: unknown taskId '${String(taskId)}'` },
+    };
   }
 
   const resultType = breakMode === "task-resulttype-not-complete" ? "task" : "complete";
@@ -263,4 +283,3 @@ export function createDispatcher() {
     }
   };
 }
-

@@ -19,7 +19,8 @@ export function createEchoServer(): McpServer {
     "echo",
     {
       title: "Echo",
-      description: "Returns the given message unchanged. Used as Crucible's minimal conformance fixture.",
+      description:
+        "Returns the given message unchanged. Used as Crucible's minimal conformance fixture.",
       inputSchema: {
         message: z.string().describe("Text to echo back"),
       },

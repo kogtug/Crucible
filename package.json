@@ -15,10 +15,19 @@
     "scan:basic": "npm run build && node packages/cli/dist/index.js scan -- node packages/fixtures/basic-server/dist/index.js",
     "scan:stateless": "npm run build && node packages/cli/dist/index.js scan -- node packages/fixtures/stateless-server/dist/index.js",
     "serve:basic-http": "npm run build && PORT=8081 node packages/fixtures/basic-server/dist/httpServer.js",
-    "serve:stateless-http": "npm run build && PORT=8080 node packages/fixtures/stateless-server/dist/httpServer.js"
+    "serve:stateless-http": "npm run build && PORT=8080 node packages/fixtures/stateless-server/dist/httpServer.js",
+    "lint": "eslint packages",
+    "lint:fix": "eslint packages --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "devDependencies": {
-    "@types/node": "^22.0.0"
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^22.0.0",
+    "eslint": "^10.7.0",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.9.5",
+    "typescript-eslint": "^8.64.0"
   },
   "engines": {
     "node": ">=18"

@@ -15,8 +15,14 @@ function fakeClient(overrides: Partial<RawJsonRpcClient>): RawJsonRpcClient {
 }
 
 test("reports 'crashed' when the process is no longer alive, regardless of the immediate outcome", async () => {
-  const client = fakeClient({ isAlive: () => false, getExitInfo: () => ({ code: 1, signal: null }) });
-  const { verdict, message } = await classifyResilience(client, { immediateResponseAcceptable: true, detail: "x" });
+  const client = fakeClient({
+    isAlive: () => false,
+    getExitInfo: () => ({ code: 1, signal: null }),
+  });
+  const { verdict, message } = await classifyResilience(client, {
+    immediateResponseAcceptable: true,
+    detail: "x",
+  });
   assert.equal(verdict, "crashed");
   assert.match(message, /code 1/);
 });
@@ -28,7 +34,10 @@ test("reports 'hung' when alive but unresponsive to the follow-up liveness probe
       throw new Error("timed out");
     },
   });
-  const { verdict } = await classifyResilience(client, { immediateResponseAcceptable: true, detail: "x" });
+  const { verdict } = await classifyResilience(client, {
+    immediateResponseAcceptable: true,
+    detail: "x",
+  });
   assert.equal(verdict, "hung");
 });
 
@@ -37,7 +46,10 @@ test("reports 'degraded' when responsive afterward but the immediate reaction wa
     isAlive: () => true,
     request: async () => ({ jsonrpc: "2.0" as const, id: 1, result: {} }),
   });
-  const { verdict } = await classifyResilience(client, { immediateResponseAcceptable: false, detail: "x" });
+  const { verdict } = await classifyResilience(client, {
+    immediateResponseAcceptable: false,
+    detail: "x",
+  });
   assert.equal(verdict, "degraded");
 });
 
@@ -46,6 +58,9 @@ test("reports 'resilient' when responsive afterward and the immediate reaction w
     isAlive: () => true,
     request: async () => ({ jsonrpc: "2.0" as const, id: 1, result: {} }),
   });
-  const { verdict } = await classifyResilience(client, { immediateResponseAcceptable: true, detail: "x" });
+  const { verdict } = await classifyResilience(client, {
+    immediateResponseAcceptable: true,
+    detail: "x",
+  });
   assert.equal(verdict, "resilient");
 });

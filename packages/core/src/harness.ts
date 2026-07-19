@@ -40,9 +40,7 @@ export class McpHarness {
 
   constructor(target: Target, options: HarnessOptions = {}) {
     this.transport = buildTransport(target);
-    this.client = new Client(
-      options.clientInfo ?? { name: "crucible-harness", version: "0.1.0" },
-    );
+    this.client = new Client(options.clientInfo ?? { name: "crucible-harness", version: "0.1.0" });
   }
 
   /** Connects to the target (spawning it, for stdio) and performs the MCP initialize handshake. */
@@ -77,4 +75,3 @@ export class McpHarness {
     return this.client;
   }
 }
-

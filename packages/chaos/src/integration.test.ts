@@ -27,7 +27,11 @@ async function runChaosAgainst(breakMode?: string): Promise<ChaosResult[]> {
 test("both scenarios report 'resilient' against the well-behaved stateless fixture", async () => {
   const results = await runChaosAgainst();
   for (const r of results) {
-    assert.equal(r.verdict, "resilient", `expected ${r.id} to be resilient, got ${r.verdict}: ${r.message}`);
+    assert.equal(
+      r.verdict,
+      "resilient",
+      `expected ${r.id} to be resilient, got ${r.verdict}: ${r.message}`,
+    );
   }
   assert.equal(results.length, 2);
 });

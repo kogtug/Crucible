@@ -10,7 +10,8 @@ import type { CheckResult } from "../types.js";
 
 function portOf(server: { address(): unknown }): number {
   const address = server.address();
-  if (typeof address !== "object" || address === null) throw new Error("expected a bound TCP address");
+  if (typeof address !== "object" || address === null)
+    throw new Error("expected a bound TCP address");
   return (address as { port: number }).port;
 }
 
@@ -53,9 +54,16 @@ test("http-header-conformance reports 'warn' (not applicable) over stdio", async
   // to prove the check correctly recognizes it doesn't apply here instead
   // of silently passing or crashing.
   const here = path.dirname(fileURLToPath(import.meta.url));
-  const statelessServerEntry = path.resolve(here, "../../../fixtures/stateless-server/dist/index.js");
+  const statelessServerEntry = path.resolve(
+    here,
+    "../../../fixtures/stateless-server/dist/index.js",
+  );
 
-  const client = new RawJsonRpcClient({ kind: "stdio", command: "node", args: [statelessServerEntry] });
+  const client = new RawJsonRpcClient({
+    kind: "stdio",
+    command: "node",
+    args: [statelessServerEntry],
+  });
   try {
     await client.connect();
     const probe = await probeServerEra(client, "2026-07-28");
@@ -70,12 +78,18 @@ test("http-header-conformance reports 'warn' (not applicable) over stdio", async
 test("the probe correctly detects era over HTTP for both fixtures", async () => {
   const modernServer = createStatelessHttpServer();
   await new Promise<void>((resolve) => modernServer.listen(0, resolve));
-  const modernClient = new RawJsonRpcClient({ kind: "http", url: `http://localhost:${portOf(modernServer)}/` });
+  const modernClient = new RawJsonRpcClient({
+    kind: "http",
+    url: `http://localhost:${portOf(modernServer)}/`,
+  });
   await modernClient.connect();
 
   const legacyServer = createEchoHttpServer();
   await new Promise<void>((resolve) => legacyServer.listen(0, resolve));
-  const legacyClient = new RawJsonRpcClient({ kind: "http", url: `http://localhost:${portOf(legacyServer)}/` });
+  const legacyClient = new RawJsonRpcClient({
+    kind: "http",
+    url: `http://localhost:${portOf(legacyServer)}/`,
+  });
   await legacyClient.connect();
 
   try {

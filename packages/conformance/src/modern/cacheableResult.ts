@@ -17,7 +17,9 @@ export function validateCacheableResult(result: Record<string, unknown>): string
   // would flag every extension-defined result as broken; the actual
   // requirement is just that the field is present and a real string.
   if (typeof result.resultType !== "string" || result.resultType.length === 0) {
-    problems.push(`resultType is ${JSON.stringify(result.resultType)}, expected a non-empty string`);
+    problems.push(
+      `resultType is ${JSON.stringify(result.resultType)}, expected a non-empty string`,
+    );
   }
 
   if (typeof result.ttlMs !== "number" || result.ttlMs < 0) {
@@ -25,9 +27,10 @@ export function validateCacheableResult(result: Record<string, unknown>): string
   }
 
   if (result.cacheScope !== "public" && result.cacheScope !== "private") {
-    problems.push(`cacheScope is ${JSON.stringify(result.cacheScope)}, expected "public" or "private"`);
+    problems.push(
+      `cacheScope is ${JSON.stringify(result.cacheScope)}, expected "public" or "private"`,
+    );
   }
 
   return problems;
 }
-

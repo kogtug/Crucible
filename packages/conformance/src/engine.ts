@@ -26,4 +26,3 @@ export async function runChecks(
     specRef: check.specRef,
   }));
 }
-
