@@ -87,7 +87,7 @@ export class RawJsonRpcClient {
     string | number,
     { resolve: (r: JsonRpcResponse) => void; reject: (e: Error) => void }
   >();
-  private readonly unmatchedWaiters: Array<(r: JsonRpcResponse) => void> = [];
+  private readonly unmatchedWaiters: ((r: JsonRpcResponse) => void)[] = [];
 
   constructor(private readonly target: Target) {}
 
@@ -119,7 +119,9 @@ export class RawJsonRpcClient {
 
     this.child.once("exit", (code, signal) => {
       this.exitInfo = { code, signal };
-      const err = new Error(`Target process exited unexpectedly (code ${code}, signal ${signal}) with pending requests`);
+      const err = new Error(
+        `Target process exited unexpectedly (code ${code}, signal ${signal}) with pending requests`,
+      );
       for (const { reject } of this.pending.values()) reject(err);
       this.pending.clear();
     });
@@ -135,7 +137,12 @@ export class RawJsonRpcClient {
 
       let parsed: JsonRpcResponse;
       try {
-        parsed = JSON.parse(line);
+        // Explicit assertion, not validation: this class is deliberately
+        // low-level (see the class doc comment) and doesn't schema-check
+        // responses - conformance checks validate shape themselves, and
+        // the chaos engine's whole job is sending things that don't match
+        // this shape in the first place.
+        parsed = JSON.parse(line) as JsonRpcResponse;
       } catch {
         // Per the stdio transport spec, a server MUST NOT write anything to
         // stdout that isn't a valid MCP message - so strictly, seeing this
@@ -152,9 +159,10 @@ export class RawJsonRpcClient {
         continue;
       }
 
-      const waiter = parsed.id !== null && parsed.id !== undefined ? this.pending.get(parsed.id) : undefined;
+      const waiter =
+        parsed.id !== null && parsed.id !== undefined ? this.pending.get(parsed.id) : undefined;
       if (waiter) {
-        this.pending.delete(parsed.id as string | number);
+        this.pending.delete(parsed.id!);
         waiter.resolve(parsed);
         continue;
       }
@@ -222,7 +230,11 @@ export class RawJsonRpcClient {
    * status: per spec, even a 400 (HeaderMismatch, UnsupportedProtocolVersion)
    * carries a JSON-RPC error body, not just a bare status code.
    */
-  private async requestHttp(target: HttpTarget, method: string, options: RawRequestOptions): Promise<JsonRpcResponse> {
+  private async requestHttp(
+    target: HttpTarget,
+    method: string,
+    options: RawRequestOptions,
+  ): Promise<JsonRpcResponse> {
     const message = this.buildMessage(method, options);
     const timeoutMs = options.timeoutMs ?? 5000;
 
@@ -253,7 +265,9 @@ export class RawJsonRpcClient {
       });
     } catch (err) {
       if (controller.signal.aborted) {
-        throw new Error(`Timed out after ${timeoutMs}ms waiting for a response to '${method}'`);
+        throw new Error(`Timed out after ${timeoutMs}ms waiting for a response to '${method}'`, {
+          cause: err,
+        });
       }
       throw err;
     } finally {
@@ -279,9 +293,12 @@ export class RawJsonRpcClient {
    */
   writeRawLine(line: string): void {
     if (this.target.kind === "http") {
-      throw new Error("writeRawLine() is stdio-only; chaos testing over HTTP isn't implemented yet.");
+      throw new Error(
+        "writeRawLine() is stdio-only; chaos testing over HTTP isn't implemented yet.",
+      );
     }
-    if (!this.child) throw new Error("RawJsonRpcClient.connect() must be called before writeRawLine()");
+    if (!this.child)
+      throw new Error("RawJsonRpcClient.connect() must be called before writeRawLine()");
     this.child.stdin.write(line + "\n");
   }
 
@@ -295,7 +312,9 @@ export class RawJsonRpcClient {
    */
   async waitForNextRawResponse(timeoutMs = 3000): Promise<JsonRpcResponse | null> {
     if (this.target.kind === "http") {
-      throw new Error("waitForNextRawResponse() is stdio-only; chaos testing over HTTP isn't implemented yet.");
+      throw new Error(
+        "waitForNextRawResponse() is stdio-only; chaos testing over HTTP isn't implemented yet.",
+      );
     }
     return new Promise((resolve) => {
       const timer = setTimeout(() => resolve(null), timeoutMs);
@@ -345,4 +364,3 @@ export class RawJsonRpcClient {
     this.child = undefined;
   }
 }
-

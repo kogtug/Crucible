@@ -18,28 +18,53 @@
  * real Streamable HTTP server, using the same SDK a real server author
  * would.
  */
-import { createServer, type Server } from "node:http";
+import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { pathToFileURL } from "node:url";
 import { createEchoServer } from "./createEchoServer.js";
 
 /** Exported so tests can start this in-process on an OS-assigned port (`.listen(0)`) instead of spawning a child process. */
 export function createEchoHttpServer(): Server {
-  return createServer(async (req, res) => {
-    const server = createEchoServer();
-    const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
-    res.on("close", () => {
-      void transport.close();
-      void server.close();
+  // node:http's request-handler type is (req, res) => void - it never
+  // awaits whatever the callback returns, so an async function passed
+  // directly here would leave its own rejections unhandled. Keeping the
+  // callback itself synchronous and explicitly handling the promise (with
+  // a real fallback response) means a failure here is a 500, not a
+  // silently hung connection.
+  return createServer((req, res) => {
+    void handleRequest(req, res).catch((err: unknown) => {
+      if (!res.headersSent) {
+        res.writeHead(500, { "Content-Type": "application/json" });
+      }
+      res.end(
+        JSON.stringify({
+          jsonrpc: "2.0",
+          id: null,
+          error: {
+            code: -32603,
+            message: `Internal error: ${err instanceof Error ? err.message : String(err)}`,
+          },
+        }),
+      );
     });
-    await server.connect(transport);
-    await transport.handleRequest(req, res);
   });
+}
+
+async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  const server = createEchoServer();
+  const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
+  res.on("close", () => {
+    void transport.close();
+    void server.close();
+  });
+  await server.connect(transport);
+  await transport.handleRequest(req, res);
 }
 
 // Runnable directly (`node dist/httpServer.js`), mirroring
 // stateless-server/httpServer.ts's same pattern.
-const isMain = process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href;
+const isMain =
+  process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href;
 if (isMain) {
   const port = Number(process.env.PORT ?? 8081);
   createEchoHttpServer().listen(port, () => {

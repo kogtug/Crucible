@@ -55,14 +55,25 @@ function writeResult(id: string | number, result: Record<string, unknown>): void
   writeMessage({ jsonrpc: "2.0", id, result });
 }
 
-function writeError(id: string | number | null, code: number, message: string, data?: unknown): void {
-  writeMessage({ jsonrpc: "2.0", id, error: { code, message, ...(data !== undefined ? { data } : {}) } });
+function writeError(
+  id: string | number | null,
+  code: number,
+  message: string,
+  data?: unknown,
+): void {
+  writeMessage({
+    jsonrpc: "2.0",
+    id,
+    error: { code, message, ...(data !== undefined ? { data } : {}) },
+  });
 }
 
 async function handleLine(line: string): Promise<void> {
   let message: IncomingMessage;
   try {
-    message = JSON.parse(line);
+    // Explicit assertion, not validation - see rawClient.ts's identical
+    // comment on the same pattern for why.
+    message = JSON.parse(line) as IncomingMessage;
   } catch {
     if (BREAK_MODE === "crash-on-malformed") {
       process.exit(1);

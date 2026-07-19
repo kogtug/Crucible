@@ -40,8 +40,16 @@ function writeJson(res: ServerResponse, status: number, body: unknown): void {
   res.end(payload);
 }
 
-function writeHeaderMismatch(res: ServerResponse, id: string | number | null, detail: string): void {
-  writeJson(res, 400, { jsonrpc: "2.0", id, error: { code: HEADER_MISMATCH, message: `Header mismatch: ${detail}` } });
+function writeHeaderMismatch(
+  res: ServerResponse,
+  id: string | number | null,
+  detail: string,
+): void {
+  writeJson(res, 400, {
+    jsonrpc: "2.0",
+    id,
+    error: { code: HEADER_MISMATCH, message: `Header mismatch: ${detail}` },
+  });
 }
 
 async function readBody(req: IncomingMessage): Promise<string> {
@@ -56,7 +64,10 @@ function headerValue(req: IncomingMessage, name: string): string | undefined {
 }
 
 /** The Mcp-Name header's expected value for this request, or undefined if the method doesn't need one. Per SEP-2243 (tools/call) and SEP-2663 (tasks/get, mirrored for consistency even though this fixture doesn't implement tasks/update or tasks/cancel). */
-function expectedMcpName(method: string | undefined, params: Record<string, unknown> | undefined): string | undefined {
+function expectedMcpName(
+  method: string | undefined,
+  params: Record<string, unknown> | undefined,
+): string | undefined {
   if (method === "tools/call") return typeof params?.name === "string" ? params.name : undefined;
   if (method === "tasks/get") return typeof params?.taskId === "string" ? params.taskId : undefined;
   return undefined;
@@ -79,79 +90,130 @@ function expectedMcpName(method: string | undefined, params: Record<string, unkn
  * store would otherwise leak task state between what are meant to be
  * independent server instances.
  */
-export function createStatelessHttpServer(breakMode: string = process.env.CRUCIBLE_BREAK ?? ""): Server {
+export function createStatelessHttpServer(
+  breakMode: string = process.env.CRUCIBLE_BREAK ?? "",
+): Server {
   const dispatch = createDispatcher();
 
-  return createServer(async (req, res) => {
-    if (req.method !== "POST") {
-      writeJson(res, 405, { jsonrpc: "2.0", id: null, error: { code: -32601, message: "Only POST is supported on this endpoint" } });
-      return;
-    }
-
-    let body: RpcRequestBody;
-    try {
-      body = JSON.parse(await readBody(req));
-    } catch {
-      writeJson(res, 400, { jsonrpc: "2.0", id: null, error: { code: -32700, message: "Parse error: request body was not valid JSON" } });
-      return;
-    }
-
-    const id = body.id ?? null;
-
-    if (breakMode !== "skip-header-validation") {
-      const mcpMethod = headerValue(req, "Mcp-Method");
-      if (mcpMethod !== body.method) {
-        writeHeaderMismatch(res, id, `Mcp-Method header ('${mcpMethod ?? "(missing)"}') does not match the request body's method ('${body.method ?? "(missing)"}')`);
+  // node:http's request-handler type is (req, res) => void - it never
+  // awaits whatever the callback returns, so an async function passed
+  // directly here would leave its own rejections unhandled if something
+  // threw after the point a response should have been sent (the request
+  // would just hang forever, silently). This wrapper keeps the actual
+  // callback synchronous and explicit about handling that promise itself,
+  // with a real fallback response instead of a silently unhandled one.
+  return createServer((req, res) => {
+    void handleRequest(req, res, breakMode, dispatch).catch((err: unknown) => {
+      if (res.headersSent) {
+        res.destroy();
         return;
       }
+      writeJson(res, 500, {
+        jsonrpc: "2.0",
+        id: null,
+        error: {
+          code: -32603,
+          message: `Internal error: ${err instanceof Error ? err.message : String(err)}`,
+        },
+      });
+    });
+  });
+}
 
-      const meta = (body.params?._meta ?? {}) as Record<string, unknown>;
-      const bodyVersion = meta["io.modelcontextprotocol/protocolVersion"];
-      const headerVersion = headerValue(req, "MCP-Protocol-Version");
-      if (headerVersion !== bodyVersion) {
+async function handleRequest(
+  req: IncomingMessage,
+  res: ServerResponse,
+  breakMode: string,
+  dispatch: ReturnType<typeof createDispatcher>,
+): Promise<void> {
+  if (req.method !== "POST") {
+    writeJson(res, 405, {
+      jsonrpc: "2.0",
+      id: null,
+      error: { code: -32601, message: "Only POST is supported on this endpoint" },
+    });
+    return;
+  }
+
+  let body: RpcRequestBody;
+  try {
+    // Explicit assertion, not validation: this fixture is only as strict
+    // about its own input as the check it's built to support requires -
+    // a genuinely malformed body here just becomes a JSON-RPC -32700
+    // below via checkProtocolVersion et al. having nothing sensible to
+    // read, not a crash.
+    body = JSON.parse(await readBody(req)) as RpcRequestBody;
+  } catch {
+    writeJson(res, 400, {
+      jsonrpc: "2.0",
+      id: null,
+      error: { code: -32700, message: "Parse error: request body was not valid JSON" },
+    });
+    return;
+  }
+
+  const id = body.id ?? null;
+
+  if (breakMode !== "skip-header-validation") {
+    const mcpMethod = headerValue(req, "Mcp-Method");
+    if (mcpMethod !== body.method) {
+      writeHeaderMismatch(
+        res,
+        id,
+        `Mcp-Method header ('${mcpMethod ?? "(missing)"}') does not match the request body's method ('${body.method ?? "(missing)"}')`,
+      );
+      return;
+    }
+
+    const meta = (body.params?._meta ?? {}) as Record<string, unknown>;
+    const bodyVersion = meta["io.modelcontextprotocol/protocolVersion"];
+    const headerVersion = headerValue(req, "MCP-Protocol-Version");
+    if (headerVersion !== bodyVersion) {
+      writeHeaderMismatch(
+        res,
+        id,
+        `MCP-Protocol-Version header ('${headerVersion ?? "(missing)"}') does not match the request body's _meta protocol version (${JSON.stringify(bodyVersion ?? null)})`,
+      );
+      return;
+    }
+
+    const wantedName = expectedMcpName(body.method, body.params);
+    if (wantedName !== undefined) {
+      const mcpName = headerValue(req, "Mcp-Name");
+      if (mcpName !== wantedName) {
         writeHeaderMismatch(
           res,
           id,
-          `MCP-Protocol-Version header ('${headerVersion ?? "(missing)"}') does not match the request body's _meta protocol version ('${String(bodyVersion ?? "(missing)")}')`,
+          `Mcp-Name header ('${mcpName ?? "(missing)"}') does not match the expected value ('${wantedName}')`,
         );
         return;
       }
-
-      const wantedName = expectedMcpName(body.method, body.params);
-      if (wantedName !== undefined) {
-        const mcpName = headerValue(req, "Mcp-Name");
-        if (mcpName !== wantedName) {
-          writeHeaderMismatch(res, id, `Mcp-Name header ('${mcpName ?? "(missing)"}') does not match the expected value ('${wantedName}')`);
-          return;
-        }
-      }
     }
+  }
 
-    if (id === null) {
-      // A notification: no response body expected, but still a real HTTP
-      // response per the transport spec (202 Accepted, empty body).
-      res.writeHead(202).end();
-      return;
-    }
+  if (id === null) {
+    // A notification: no response body expected, but still a real HTTP
+    // response per the transport spec (202 Accepted, empty body).
+    res.writeHead(202).end();
+    return;
+  }
 
-    const { result, error } = await dispatch(breakMode, body.method, body.params);
-    if (error) {
-      writeJson(res, 200, { jsonrpc: "2.0", id, error });
-    } else {
-      writeJson(res, 200, { jsonrpc: "2.0", id, result });
-    }
-  });
+  const { result, error } = await dispatch(breakMode, body.method, body.params);
+  if (error) {
+    writeJson(res, 200, { jsonrpc: "2.0", id, error });
+  } else {
+    writeJson(res, 200, { jsonrpc: "2.0", id, result });
+  }
 }
 
 // Runnable directly (`node dist/httpServer.js`), for manual use and for the
 // CLI to point at - as opposed to createStatelessHttpServer() above, which
 // tests import directly to get an in-process server on a dynamic port.
-const isMain = process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href;
+const isMain =
+  process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href;
 if (isMain) {
   const port = Number(process.env.PORT ?? 8080);
   createStatelessHttpServer().listen(port, () => {
     console.error(`crucible-fixture-stateless (HTTP) listening on http://localhost:${port}/`);
   });
 }
-
-

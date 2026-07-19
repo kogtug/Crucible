@@ -19,6 +19,17 @@ interface CliRunResult {
   exitCode: number;
 }
 
+interface ScanReportJson {
+  era?: string;
+  results: { id: string; status: string }[];
+  summary: { pass: number; fail: number; warn: number; total: number };
+}
+
+interface ChaosReportJson {
+  results: { id: string; verdict: string }[];
+  summary: { resilient: number; degraded: number; hung: number; crashed: number; total: number };
+}
+
 async function runCli(args: string[]): Promise<CliRunResult> {
   try {
     const { stdout } = await execFileAsync("node", [cliEntry, ...args]);
@@ -30,16 +41,30 @@ async function runCli(args: string[]): Promise<CliRunResult> {
 }
 
 test("crucible scan detects the legacy fixture, passes, and exits 0", async () => {
-  const { stdout, exitCode } = await runCli(["scan", "--format", "json", "--", "node", legacyServerEntry]);
-  const report = JSON.parse(stdout);
+  const { stdout, exitCode } = await runCli([
+    "scan",
+    "--format",
+    "json",
+    "--",
+    "node",
+    legacyServerEntry,
+  ]);
+  const report = JSON.parse(stdout) as ScanReportJson;
   assert.equal(report.era, "legacy");
   assert.equal(report.summary.fail, 0);
   assert.equal(exitCode, 0);
 });
 
 test("crucible scan detects the modern fixture, passes, and exits 0", async () => {
-  const { stdout, exitCode } = await runCli(["scan", "--format", "json", "--", "node", statelessServerEntry]);
-  const report = JSON.parse(stdout);
+  const { stdout, exitCode } = await runCli([
+    "scan",
+    "--format",
+    "json",
+    "--",
+    "node",
+    statelessServerEntry,
+  ]);
+  const report = JSON.parse(stdout) as ScanReportJson;
   assert.equal(report.era, "modern");
   assert.equal(report.summary.fail, 0);
   assert.equal(exitCode, 0);
@@ -56,15 +81,22 @@ test("crucible scan exits 1 and reports failures for a broken modern fixture", a
     "node",
     statelessServerEntry,
   ]);
-  const report = JSON.parse(stdout);
+  const report = JSON.parse(stdout) as ScanReportJson;
   assert.equal(report.era, "modern");
   assert.ok(report.summary.fail > 0, "expected at least one failing check");
   assert.equal(exitCode, 1);
 });
 
 test("crucible chaos reports all-resilient against the well-behaved stateless fixture", async () => {
-  const { stdout, exitCode } = await runCli(["chaos", "--format", "json", "--", "node", statelessServerEntry]);
-  const report = JSON.parse(stdout);
+  const { stdout, exitCode } = await runCli([
+    "chaos",
+    "--format",
+    "json",
+    "--",
+    "node",
+    statelessServerEntry,
+  ]);
+  const report = JSON.parse(stdout) as ChaosReportJson;
   assert.equal(report.summary.resilient, 2);
   assert.equal(exitCode, 0);
 });
@@ -80,7 +112,7 @@ test("crucible chaos reports 'crashed' and exits 1 against CRUCIBLE_BREAK=crash-
     "node",
     statelessServerEntry,
   ]);
-  const report = JSON.parse(stdout);
+  const report = JSON.parse(stdout) as ChaosReportJson;
   assert.equal(report.summary.crashed, 2);
   assert.equal(exitCode, 1);
 });
@@ -94,10 +126,17 @@ test("crucible chaos works era-agnostically against the legacy SDK-based fixture
   // MCP specification violation - the spec is more silent on this exact
   // case than that framing would suggest. That's why this is 'degraded',
   // not something stronger.
-  const { stdout, exitCode } = await runCli(["chaos", "--format", "json", "--", "node", legacyServerEntry]);
-  const report = JSON.parse(stdout);
-  const malformed = report.results.find((r: { id: string }) => r.id === "malformed-json-resilience");
-  assert.equal(malformed.verdict, "degraded");
+  const { stdout, exitCode } = await runCli([
+    "chaos",
+    "--format",
+    "json",
+    "--",
+    "node",
+    legacyServerEntry,
+  ]);
+  const report = JSON.parse(stdout) as ChaosReportJson;
+  const malformed = report.results.find((r) => r.id === "malformed-json-resilience");
+  assert.equal(malformed?.verdict, "degraded");
   assert.equal(exitCode, 1);
 });
 
@@ -116,13 +155,13 @@ test("crucible scan <url> works against a real HTTP server for both fixtures", a
 
   try {
     const modern = await runCli(["scan", "--format", "json", `http://localhost:${modernPort}/`]);
-    const modernReport = JSON.parse(modern.stdout);
+    const modernReport = JSON.parse(modern.stdout) as ScanReportJson;
     assert.equal(modernReport.era, "modern");
     assert.equal(modernReport.summary.fail, 0);
     assert.equal(modern.exitCode, 0);
 
     const legacy = await runCli(["scan", "--format", "json", `http://localhost:${legacyPort}/`]);
-    const legacyReport = JSON.parse(legacy.stdout);
+    const legacyReport = JSON.parse(legacy.stdout) as ScanReportJson;
     assert.equal(legacyReport.era, "legacy");
     assert.equal(legacyReport.summary.fail, 0);
     assert.equal(legacy.exitCode, 0);
