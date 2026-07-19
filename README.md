@@ -19,13 +19,13 @@ and tighter OAuth-based authorization. SDK maintainers have roughly a ten-week
 window to validate against it — which means almost none of the existing MCP
 tooling ecosystem (security scanners, chaos-testing tools, observability
 platforms) yet has anything that checks whether a server or client correctly
-implements *these specific new primitives*. That gap is what Crucible targets.
+implements _these specific new primitives_. That gap is what Crucible targets.
 
 This is deliberately **not** another MCP security scanner (tool-poisoning /
 prompt-injection detection is already well served by tools like MCP-Scan,
 mcp-audit, and several others) and **not** another generic agent chaos-testing
 framework (see `agent-chaos`, Cordum). Crucible is scoped narrowly to protocol
-*correctness and resilience* against the newest spec surface.
+_correctness and resilience_ against the newest spec surface.
 
 See [`docs/architecture.md`](./docs/architecture.md) for the full design,
 including a correction: Phase 1 described the new discovery mechanism as
@@ -36,6 +36,7 @@ that term doesn't exist in it - the real mechanism is a JSON-RPC method,
 ## Status
 
 **Phase 1 — walking skeleton**
+
 - [x] Monorepo scaffold (npm workspaces + TypeScript project references)
 - [x] `@crucible/core` — stdio harness wrapping the official MCP SDK client
 - [x] `@crucible/fixture-basic-server` — a minimal, well-behaved reference server
@@ -45,17 +46,19 @@ that term doesn't exist in it - the real mechanism is a JSON-RPC method,
       integration test against the fixture server), wired into CI
 
 **Phase 2 — the draft 2026-07-28 primitives (stdio-only)**
+
 - [x] `RawJsonRpcClient` — hand-rolled JSON-RPC 2.0 client, no `initialize` assumed
 - [x] `probeServerEra` — implements the spec's own 3-outcome `server/discover` detection algorithm
 - [x] `@crucible/fixture-stateless-server` — hand-rolled server for the new era, with `CRUCIBLE_BREAK` modes
 - [x] Modern checks: `discoverConformance`, `statelessToolsListConformance` (both version-gated)
 - [x] CLI auto-detects era and runs the matching check family; `--format json` for CI
-- [x] 18 tests total, including true-positive *and* true-negative coverage for every new check
+- [x] 18 tests total, including true-positive _and_ true-negative coverage for every new check
 - [x] Streamable HTTP transport + its header requirements (SEP-2243) — delivered in Phase 4, below
 - [x] `io.modelcontextprotocol/tasks` extension conformance — delivered in Phase 5, below (core flow only)
 - [ ] MRTR (`input_required`) round-trip conformance — accepted as valid, not yet exercised end to end
 
 **Phase 3 — chaos/resilience engine (stdio, 2 scenarios)**
+
 - [x] `@crucible/chaos` — four-tier verdict system (resilient/degraded/hung/crashed)
 - [x] `malformedJsonResilience`, `unknownMethodResilience`, both era-agnostic
 - [x] `RawJsonRpcClient` extended with raw writes, unmatched-response handling, and liveness tracking
@@ -66,6 +69,7 @@ that term doesn't exist in it - the real mechanism is a JSON-RPC method,
 - [x] 29 tests total
 
 **Phase 4 — Streamable HTTP transport**
+
 - [x] `Target` discriminated union (stdio | http) replaces the stdio-only shape,
       across `McpHarness` and `RawJsonRpcClient`
 - [x] `McpHarness` over HTTP via the official SDK's `StreamableHTTPClientTransport`
@@ -84,6 +88,7 @@ that term doesn't exist in it - the real mechanism is a JSON-RPC method,
 - [ ] SSE response mode, chaos-testing over HTTP — still deferred, see `docs/architecture.md`
 
 **Phase 5 — Tasks extension (SEP-2663) core flow**
+
 - [x] `tools/call` implemented for the first time (`echo`, and the new task-augmentable `slow_echo`)
 - [x] `tasks/get` create-and-poll flow: `CreateTaskResult` (`resultType: "task"`) →
       poll → terminal `GetTaskResult` (`resultType: "complete"`)
@@ -102,6 +107,7 @@ that term doesn't exist in it - the real mechanism is a JSON-RPC method,
       (2025-11-25) version of Tasks — all deferred, see `docs/architecture.md`
 
 **Later phases**
+
 - [ ] Phase 6: LLM-assisted adversarial test-case generation (needs an Anthropic API key
       wired into wherever this runs — not available while building this, see `docs/architecture.md`)
 - [ ] Phase 7: report dashboard + shareable badge
@@ -117,6 +123,8 @@ npm run scan:basic       # legacy (initialize-based) fixture, over stdio
 npm run scan:stateless   # modern (draft 2026-07-28, discover-based) fixture, over stdio - includes Tasks
 node packages/cli/dist/index.js chaos -- node packages/fixtures/stateless-server/dist/index.js
 npm test                 # 40 tests: unit + real end-to-end integration, every era/transport/scenario
+npm run lint             # type-aware ESLint across every package
+npm run format:check     # Prettier
 ```
 
 Or over real Streamable HTTP, in two terminals:
@@ -172,7 +180,16 @@ docs/
                          chaos engine's verdict system, the HTTP transport
                          design, the Tasks extension
 FINDINGS.md             primary-source-verified conformance/robustness findings
+CONTRIBUTING.md         dev setup, conventions, and how to add a new check or scenario
+CHANGELOG.md            what changed, by phase
 ```
+
+## Contributing
+
+See [`CONTRIBUTING.md`](./CONTRIBUTING.md) - dev setup, the project's
+actual conventions (not a generic template), and a walkthrough of adding a
+new conformance check or chaos scenario, including the "prove both
+directions" rule every check and scenario in this repo follows.
 
 ## License
 
