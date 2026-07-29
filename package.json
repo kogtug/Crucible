@@ -4,6 +4,15 @@
   "version": "0.1.0",
   "description": "Crucible: a conformance and resilience testing harness for the Model Context Protocol (MCP).",
   "type": "module",
+  "author": "Göktuğ",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/YOUR_USERNAME/crucible.git"
+  },
+  "homepage": "https://github.com/YOUR_USERNAME/crucible#readme",
+  "bugs": {
+    "url": "https://github.com/YOUR_USERNAME/crucible/issues"
+  },
   "workspaces": [
     "packages/*",
     "packages/fixtures/*"
