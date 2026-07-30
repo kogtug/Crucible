@@ -152,6 +152,80 @@ node packages/cli/dist/index.js scan --format json \
   -- env CRUCIBLE_BREAK=task-without-capability node packages/fixtures/stateless-server/dist/index.js
 ```
 
+## Example output
+
+Real output, not illustrative - `crucible scan` against the legacy fixture:
+
+```
+Crucible: scanning node packages/fixtures/basic-server/dist/index.js
+Detected protocol era: legacy
+
+✅ [PASS] Initialize handshake returns well-formed server info and capabilities
+   Server identified itself as crucible-fixture-basic@0.1.0 and negotiated capabilities: tools.
+   spec: MCP spec section: Base Protocol / Lifecycle - initialize
+
+✅ [PASS] tools/list returns schema-valid tool definitions
+   1 tool(s) reported, all with valid names and object-typed input schemas.
+   spec: MCP spec section: Server Features / Tools
+
+Summary: 2 passed, 0 failed, 0 warned (2 total).
+```
+
+Against the modern fixture - discovery, stateless `tools/list`, and the full Tasks extension create-and-poll flow, all in one scan:
+
+```
+Crucible: scanning node packages/fixtures/stateless-server/dist/index.js
+Detected protocol era: modern
+
+✅ [PASS] server/discover returns a schema-valid, cacheable DiscoverResult
+   server/discover reports support for 2026-07-28, with a valid resultType/ttlMs/cacheScope.
+   spec: MCP draft spec: server/discover (SEP-2575), CacheableResult (SEP-2549)
+
+✅ [PASS] tools/list works statelessly and returns a cacheable result
+   tools/list returned 2 tool(s) with a valid resultType/ttlMs/cacheScope, using only per-request _meta.
+   spec: MCP draft spec: stateless core (SEP-2567), CacheableResult (SEP-2549)
+
+⚠️  [WARN] Rejects a mismatched Mcp-Method header with a HeaderMismatch error
+   Target is not an HTTP endpoint - this check only applies to the Streamable HTTP transport.
+   spec: MCP draft spec: Streamable HTTP transport, Standard Request Headers + Server Validation (SEP-2243)
+
+✅ [PASS] Tasks extension: create-and-poll flow returns correctly-shaped results
+   Task a7f61d63-cf73-406c-9756-60557efa0eef was created (resultType 'task'), polled to completion,
+   and the terminal tasks/get response correctly reported resultType 'complete' with a valid result.
+   spec: SEP-2663 (Tasks extension): Task Creation, Task Polling
+
+✅ [PASS] Tasks extension: no task is created for a client that didn't ask for one
+   Correctly returned an ordinary synchronous result rather than creating a task the client never asked for.
+   spec: SEP-2663 (Tasks extension): Capability Negotiation
+
+Summary: 4 passed, 0 failed, 1 warned (5 total).
+```
+
+And `crucible chaos` against the same legacy fixture - the real finding from [`FINDINGS.md`](./FINDINGS.md), reproduced live rather than just asserted:
+
+```
+Crucible chaos: attacking node packages/fixtures/basic-server/dist/index.js
+
+⚠️  [DEGRADED] Handles a syntactically invalid JSON-RPC message without crashing or hanging
+   Process recovered and is still responsive, but its immediate reaction to the fault wasn't
+   spec-correct. Sent one syntactically invalid line; got no response at all (JSON-RPC 2.0
+   convention calls for a -32700 error here - see FINDINGS.md for the full spec analysis
+   behind that expectation).
+   spec: JSON-RPC 2.0 spec, Section 5 ("the Server MUST reply... except Notifications") and
+   the worked parse-error example in Section 7. NOT an MCP-specific requirement - see
+   FINDINGS.md for why the MCP stdio transport's 'MUST NOT write invalid output' line
+   doesn't apply here, and for the confidence level behind this check.
+
+✅ [RESILIENT] Rejects an unrecognized method cleanly instead of hanging or crashing
+   Handled correctly and remained responsive afterward. Correctly responded with a -32601
+   method-not-found error.
+   spec: JSON-RPC 2.0: Method not found (-32601)
+
+Summary: 1 resilient, 1 degraded, 0 hung, 0 crashed (2 total).
+```
+
+That's `@modelcontextprotocol/sdk@1.29.0` - the official SDK - not a bug in this repo's own fixture.
+
 ## Repository layout
 
 ```
@@ -182,6 +256,7 @@ docs/
 FINDINGS.md             primary-source-verified conformance/robustness findings
 CONTRIBUTING.md         dev setup, conventions, and how to add a new check or scenario
 CHANGELOG.md            what changed, by phase
+SECURITY.md             how to report a vulnerability, and current dependency-audit status
 ```
 
 ## Contributing
@@ -190,6 +265,14 @@ See [`CONTRIBUTING.md`](./CONTRIBUTING.md) - dev setup, the project's
 actual conventions (not a generic template), and a walkthrough of adding a
 new conformance check or chaos scenario, including the "prove both
 directions" rule every check and scenario in this repo follows.
+
+## Security
+
+See [`SECURITY.md`](./SECURITY.md) for how to report a vulnerability. It
+also documents one currently-open `npm audit` finding in a transitive
+dependency, assessed (by reading the installed source, not assumed) as not
+reachable through anything Crucible actually does with it - documented
+rather than silently downgraded to a version that doesn't really fix it.
 
 ## License
 
