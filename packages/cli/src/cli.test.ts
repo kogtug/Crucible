@@ -30,9 +30,9 @@ interface ChaosReportJson {
   summary: { resilient: number; degraded: number; hung: number; crashed: number; total: number };
 }
 
-async function runCli(args: string[]): Promise<CliRunResult> {
+async function runCli(args: string[], env: NodeJS.ProcessEnv = {}): Promise<CliRunResult> {
   try {
-    const { stdout } = await execFileAsync("node", [cliEntry, ...args]);
+    const { stdout } = await execFileAsync("node", [cliEntry, ...args], { env: { ...process.env, ...env } });
     return { stdout, exitCode: 0 };
   } catch (err) {
     const failure = err as { stdout?: string; code?: number };
@@ -71,16 +71,14 @@ test("crucible scan detects the modern fixture, passes, and exits 0", async () =
 });
 
 test("crucible scan exits 1 and reports failures for a broken modern fixture", async () => {
-  const { stdout, exitCode } = await runCli([
+const { stdout, exitCode } = await runCli([
     "scan",
     "--format",
     "json",
     "--",
-    "env",
-    "CRUCIBLE_BREAK=negative-ttl",
     "node",
     statelessServerEntry,
-  ]);
+  ], { CRUCIBLE_BREAK: "negative-ttl" });
   const report = JSON.parse(stdout) as ScanReportJson;
   assert.equal(report.era, "modern");
   assert.ok(report.summary.fail > 0, "expected at least one failing check");
@@ -107,11 +105,9 @@ test("crucible chaos reports 'crashed' and exits 1 against CRUCIBLE_BREAK=crash-
     "--format",
     "json",
     "--",
-    "env",
-    "CRUCIBLE_BREAK=crash-on-malformed",
     "node",
     statelessServerEntry,
-  ]);
+  ], { CRUCIBLE_BREAK: "crash-on-malformed" });
   const report = JSON.parse(stdout) as ChaosReportJson;
   assert.equal(report.summary.crashed, 2);
   assert.equal(exitCode, 1);

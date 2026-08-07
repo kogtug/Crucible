@@ -107,6 +107,7 @@ export class RawJsonRpcClient {
     this.child = spawn(stdioTarget.command, stdioTarget.args ?? [], {
       env: { ...process.env, ...stdioTarget.env },
       stdio: ["pipe", "pipe", "pipe"],
+       shell: process.platform === "win32",
     });
 
     this.child.stdout.setEncoding("utf8");
