@@ -1,4 +1,4 @@
-import { isJsonRpcError } from "@crucible/core";
+import { isJsonRpcError } from "@cruciblemcp/core";
 import type { ChaosScenario, ChaosContext, ChaosResult } from "../types.js";
 import { classifyResilience } from "../liveness.js";
 

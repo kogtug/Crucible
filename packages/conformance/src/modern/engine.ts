@@ -1,5 +1,5 @@
-import type { RawJsonRpcClient } from "@crucible/core";
-import { runEngine } from "@crucible/core";
+import type { RawJsonRpcClient } from "@cruciblemcp/core";
+import { runEngine } from "@cruciblemcp/core";
 import type { CheckResult } from "../types.js";
 import type { ModernCheck } from "./types.js";
 import { discoverConformance } from "./checks/discover.js";
@@ -19,7 +19,7 @@ export const defaultModernChecks: ModernCheck[] = [
 /**
  * Builds the modern check context and runs it through the same shared
  * `runEngine` loop the legacy engine (`../engine.js`) and the chaos engine
- * (`@crucible/chaos`) use. The context construction and the Result shape
+ * (`@cruciblemcp/chaos`) use. The context construction and the Result shape
  * on a thrown error are the only things specific to this engine; a
  * separate function from the legacy one still earns its keep for that
  * reason - see docs/architecture.md, "Two protocol eras" - but the loop

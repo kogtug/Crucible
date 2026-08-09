@@ -151,7 +151,7 @@ function handleToolsList(
  * its own discretion, but MUST NOT do so for a client that didn't declare
  * the extension capability on this request. CRUCIBLE_BREAK=task-without-capability
  * violates that MUST NOT on purpose, so taskCapabilityConformance (in
- * @crucible/conformance) has a real negative case to catch.
+ * @cruciblemcp/conformance) has a real negative case to catch.
  */
 async function handleToolsCall(
   breakMode: string,

@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { McpHarness } from "@crucible/core";
-import { createEchoHttpServer } from "@crucible/fixture-basic-server/dist/httpServer.js";
+import { McpHarness } from "@cruciblemcp/core";
+import { createEchoHttpServer } from "@cruciblemcp/fixture-basic-server/dist/httpServer.js";
 import { runChecks } from "./engine.js";
 
 test("legacy checks all pass against the basic fixture over Streamable HTTP", async () => {

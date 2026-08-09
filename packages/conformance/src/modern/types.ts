@@ -1,4 +1,4 @@
-import type { RawJsonRpcClient, Runnable } from "@crucible/core";
+import type { RawJsonRpcClient, Runnable } from "@cruciblemcp/core";
 import type { CheckResult } from "../types.js";
 
 export interface ModernCheckContext {

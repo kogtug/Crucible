@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { RawJsonRpcClient, probeServerEra } from "@crucible/core";
+import { RawJsonRpcClient, probeServerEra } from "@cruciblemcp/core";
 import { runModernChecks } from "./engine.js";
 import type { CheckResult } from "../types.js";
 

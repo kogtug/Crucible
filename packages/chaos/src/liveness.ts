@@ -1,4 +1,4 @@
-import type { RawJsonRpcClient } from "@crucible/core";
+import type { RawJsonRpcClient } from "@cruciblemcp/core";
 import type { ResilienceVerdict } from "./types.js";
 
 /**

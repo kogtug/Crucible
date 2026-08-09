@@ -2,9 +2,9 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { RawJsonRpcClient, probeServerEra } from "@crucible/core";
-import { createStatelessHttpServer } from "@crucible/fixture-stateless-server/dist/httpServer.js";
-import { createEchoHttpServer } from "@crucible/fixture-basic-server/dist/httpServer.js";
+import { RawJsonRpcClient, probeServerEra } from "@cruciblemcp/core";
+import { createStatelessHttpServer } from "@cruciblemcp/fixture-stateless-server/dist/httpServer.js";
+import { createEchoHttpServer } from "@cruciblemcp/fixture-basic-server/dist/httpServer.js";
 import { runModernChecks } from "./engine.js";
 import type { CheckResult } from "../types.js";
 

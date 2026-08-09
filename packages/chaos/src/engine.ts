@@ -1,5 +1,5 @@
-import type { RawJsonRpcClient } from "@crucible/core";
-import { runEngine } from "@crucible/core";
+import type { RawJsonRpcClient } from "@cruciblemcp/core";
+import { runEngine } from "@cruciblemcp/core";
 import type { ChaosResult, ChaosScenario } from "./types.js";
 import { malformedJsonResilience } from "./scenarios/malformedJson.js";
 import { unknownMethodResilience } from "./scenarios/unknownMethod.js";
@@ -8,8 +8,8 @@ export const defaultScenarios: ChaosScenario[] = [malformedJsonResilience, unkno
 
 /**
  * Runs each scenario in sequence against the same connection, via the same
- * shared `runEngine` loop `@crucible/conformance`'s two engines use (see
- * `@crucible/core`'s runEngine). Sequence matters here in a way it doesn't
+ * shared `runEngine` loop `@cruciblemcp/conformance`'s two engines use (see
+ * `@cruciblemcp/core`'s runEngine). Sequence matters here in a way it doesn't
  * for conformance checks: scenarios are not independent, so if one crashes
  * the process, every scenario after it will correctly observe "crashed"
  * too (the connection doesn't magically heal between scenarios) rather

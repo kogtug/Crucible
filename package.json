@@ -1,17 +1,17 @@
 {
   "name": "crucible-monorepo",
-  "private": true,
+  "private": false,
   "version": "0.1.0",
   "description": "Crucible: a conformance and resilience testing harness for the Model Context Protocol (MCP).",
   "type": "module",
   "author": "Göktuğ",
   "repository": {
     "type": "git",
-    "url": "https://github.com/YOUR_USERNAME/crucible.git"
+    "url": "git+https://github.com/kogtug/Crucible.git"
   },
-  "homepage": "https://github.com/YOUR_USERNAME/crucible#readme",
+  "homepage": "https://github.com/kogtug/Crucible#readme",
   "bugs": {
-    "url": "https://github.com/YOUR_USERNAME/crucible/issues"
+    "url": "https://github.com/kogtug/Crucible/issues"
   },
   "workspaces": [
     "packages/*",
@@ -41,5 +41,8 @@
   "engines": {
     "node": ">=18"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "@cruciblemcp/cli": "^0.1.1"
+  }
 }

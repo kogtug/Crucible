@@ -1,4 +1,4 @@
-import type { McpHarness } from "@crucible/core";
+import type { McpHarness } from "@cruciblemcp/core";
 import type { Check, CheckResult } from "../types.js";
 
 /**

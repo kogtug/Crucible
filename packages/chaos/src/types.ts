@@ -1,4 +1,4 @@
-import type { RawJsonRpcClient, Runnable } from "@crucible/core";
+import type { RawJsonRpcClient, Runnable } from "@cruciblemcp/core";
 
 /**
  * Four-tier resilience verdict, deliberately richer than pass/fail:

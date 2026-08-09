@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { classifyResilience } from "./liveness.js";
-import type { RawJsonRpcClient } from "@crucible/core";
+import type { RawJsonRpcClient } from "@cruciblemcp/core";
 
 function fakeClient(overrides: Partial<RawJsonRpcClient>): RawJsonRpcClient {
   return {

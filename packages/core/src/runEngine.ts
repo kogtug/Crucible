@@ -14,8 +14,8 @@ export interface Runnable<Ctx, Result> {
  * Runs every item against the same context, in order, catching individual
  * failures so one broken item can't take down the whole run.
  *
- * This is the exact loop `@crucible/conformance`'s legacy and modern
- * engines and `@crucible/chaos`'s engine all had, independently, byte-for-byte
+ * This is the exact loop `@cruciblemcp/conformance`'s legacy and modern
+ * engines and `@cruciblemcp/chaos`'s engine all had, independently, byte-for-byte
  * identical except for how each turns a caught error into its own Result
  * shape. Three copies of the same loop was the signal that a shared
  * generic was overdue - two was still plausibly a coincidence (see

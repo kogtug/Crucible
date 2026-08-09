@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { runChecks } from "./engine.js";
 import type { Check, CheckStatus } from "./types.js";
-import type { McpHarness } from "@crucible/core";
+import type { McpHarness } from "@cruciblemcp/core";
 
 // These tests exercise the engine in isolation with fake checks, so they
 // don't need a real MCP connection. integration.test.ts (this package) and

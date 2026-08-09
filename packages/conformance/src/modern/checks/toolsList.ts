@@ -1,4 +1,4 @@
-import { isJsonRpcError } from "@crucible/core";
+import { isJsonRpcError } from "@cruciblemcp/core";
 import type { ModernCheck, ModernCheckContext } from "../types.js";
 import { validateCacheableResult } from "../cacheableResult.js";
 import type { CheckResult } from "../../types.js";

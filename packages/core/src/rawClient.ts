@@ -43,7 +43,7 @@ export interface RawRequestOptions {
    * similar) to prove a server's header-validation conformance check
    * actually catches a violation, the same true-positive/true-negative
    * discipline every other check in this repo follows. It is not a general
-   * chaos-testing facility; see @crucible/chaos and "Deferred, on purpose"
+   * chaos-testing facility; see @cruciblemcp/chaos and "Deferred, on purpose"
    * in docs/architecture.md for why HTTP chaos testing is a separate,
    * not-yet-built thing.
    */
@@ -151,7 +151,7 @@ export class RawJsonRpcClient {
         // code path (and the same underlying gap) as upstream issue
         // modelcontextprotocol/typescript-sdk#244: a client's deserializer
         // has no graceful handling for a malformed line, here or there.
-        // @crucible/chaos's malformed-JSON scenario deliberately exercises
+        // @cruciblemcp/chaos's malformed-JSON scenario deliberately exercises
         // the *other* direction - a server's resilience to malformed input
         // from a client, via writeRawLine() below - not this one. Testing
         // Crucible's own resilience to a malformed *server* is a real gap,

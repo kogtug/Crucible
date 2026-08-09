@@ -5,8 +5,8 @@ import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import type { AddressInfo } from "node:net";
-import { createStatelessHttpServer } from "@crucible/fixture-stateless-server/dist/httpServer.js";
-import { createEchoHttpServer } from "@crucible/fixture-basic-server/dist/httpServer.js";
+import { createStatelessHttpServer } from "@cruciblemcp/fixture-stateless-server/dist/httpServer.js";
+import { createEchoHttpServer } from "@cruciblemcp/fixture-basic-server/dist/httpServer.js";
 
 const execFileAsync = promisify(execFile);
 const here = path.dirname(fileURLToPath(import.meta.url));

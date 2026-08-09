@@ -1,4 +1,4 @@
-import type { McpHarness, Runnable } from "@crucible/core";
+import type { McpHarness, Runnable } from "@cruciblemcp/core";
 
 export type CheckStatus = "pass" | "fail" | "warn";
 

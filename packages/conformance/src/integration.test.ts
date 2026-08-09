@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { McpHarness } from "@crucible/core";
+import { McpHarness } from "@cruciblemcp/core";
 import { runChecks } from "./engine.js";
 
 // This is the one test in Phase 1 that exercises the real stdio transport and

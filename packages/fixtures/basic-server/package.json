@@ -1,5 +1,5 @@
 {
-  "name": "@crucible/fixture-basic-server",
+  "name": "@cruciblemcp/fixture-basic-server",
   "version": "0.1.0",
   "description": "A minimal, spec-conformant MCP server exposing one tool. Crucible's reference target for the classic initialize-based protocol.",
   "type": "module",

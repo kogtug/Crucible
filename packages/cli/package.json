@@ -1,23 +1,29 @@
 {
-  "name": "@crucible/cli",
-  "version": "0.1.0",
-  "description": "Command-line interface for Crucible: `crucible scan -- <command>` for conformance checks, `crucible chaos -- <command>` for fault-injection resilience scoring.",
+  "name": "@cruciblemcp/cli",
+  "version": "0.1.5",
+  "description": "Command-line interface for Crucible.",
   "type": "module",
   "bin": {
     "crucible": "dist/index.js"
   },
   "main": "dist/index.js",
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc -b"
   },
   "dependencies": {
-    "@crucible/chaos": "*",
-    "@crucible/conformance": "*",
-    "@crucible/core": "*",
+    "@cruciblemcp/chaos": "*",
+    "@cruciblemcp/conformance": "*",
+    "@cruciblemcp/core": "*",
     "commander": "^12.0.0"
   },
   "devDependencies": {
-    "@crucible/fixture-basic-server": "*",
-    "@crucible/fixture-stateless-server": "*"
+    "@cruciblemcp/fixture-basic-server": "*",
+    "@cruciblemcp/fixture-stateless-server": "*"
   }
 }
