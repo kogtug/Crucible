@@ -1,26 +1,14 @@
 #!/usr/bin/env node
 
 import { Command } from "commander";
-import {
-  McpHarness,
-  RawJsonRpcClient,
-  probeServerEra,
-} from "@cruciblemcp/core";
+import { McpHarness, RawJsonRpcClient, probeServerEra } from "@cruciblemcp/core";
 import type { Target } from "@cruciblemcp/core";
 
-import {
-  runChecks,
-  runModernChecks,
-} from "@cruciblemcp/conformance";
+import { runChecks, runModernChecks } from "@cruciblemcp/conformance";
 import type { CheckResult } from "@cruciblemcp/conformance";
 
-import {
-  runChaosScenarios,
-} from "@cruciblemcp/chaos";
-import type {
-  ChaosResult,
-  ResilienceVerdict,
-} from "@cruciblemcp/chaos";
+import { runChaosScenarios } from "@cruciblemcp/chaos";
+import type { ChaosResult, ResilienceVerdict } from "@cruciblemcp/chaos";
 
 /**
  * The modern MCP protocol version Crucible prefers when probing.
@@ -46,10 +34,7 @@ const PREFERRED_MODERN_VERSION = "2026-07-28";
  *   crucible chaos node server.js
  */
 function parseTarget(commandParts: string[]): Target {
-  if (
-    commandParts.length === 1 &&
-    /^https?:\/\//i.test(commandParts[0])
-  ) {
+  if (commandParts.length === 1 && /^https?:\/\//i.test(commandParts[0])) {
     return {
       kind: "http",
       url: commandParts[0],
@@ -110,9 +95,7 @@ function printHumanReport(report: ScanReport): void {
   console.log("");
 
   for (const result of report.results) {
-    console.log(
-      `${STATUS_ICON[result.status]} [${result.status.toUpperCase()}] ${result.title}`,
-    );
+    console.log(`${STATUS_ICON[result.status]} [${result.status.toUpperCase()}] ${result.title}`);
 
     console.log(`   ${result.message}`);
 
@@ -152,10 +135,7 @@ function negotiateVersion(supportedVersions: string[]): string {
     return PREFERRED_MODERN_VERSION;
   }
 
-  return (
-    supportedVersions[0] ??
-    PREFERRED_MODERN_VERSION
-  );
+  return supportedVersions[0] ?? PREFERRED_MODERN_VERSION;
 }
 
 const VERDICT_ICON: Record<ResilienceVerdict, string> = {
@@ -172,35 +152,24 @@ interface ChaosReport {
 
 function summarizeChaos(results: ChaosResult[]) {
   return {
-    resilient: results.filter(
-      (r) => r.verdict === "resilient",
-    ).length,
+    resilient: results.filter((r) => r.verdict === "resilient").length,
 
-    degraded: results.filter(
-      (r) => r.verdict === "degraded",
-    ).length,
+    degraded: results.filter((r) => r.verdict === "degraded").length,
 
-    hung: results.filter(
-      (r) => r.verdict === "hung",
-    ).length,
+    hung: results.filter((r) => r.verdict === "hung").length,
 
-    crashed: results.filter(
-      (r) => r.verdict === "crashed",
-    ).length,
+    crashed: results.filter((r) => r.verdict === "crashed").length,
 
     total: results.length,
   };
 }
 
 function printChaosHumanReport(report: ChaosReport): void {
-  console.log(
-    `\nCrucible chaos: attacking ${report.target}\n`,
-  );
+  console.log(`\nCrucible chaos: attacking ${report.target}\n`);
 
   for (const result of report.results) {
     console.log(
-      `${VERDICT_ICON[result.verdict]} ` +
-        `[${result.verdict.toUpperCase()}] ${result.title}`,
+      `${VERDICT_ICON[result.verdict]} ` + `[${result.verdict.toUpperCase()}] ${result.title}`,
     );
 
     console.log(`   ${result.message}`);
@@ -236,9 +205,7 @@ function printChaosJsonReport(report: ChaosReport): void {
   );
 }
 
-async function runChaos(
-  target: Target,
-): Promise<ChaosReport> {
+async function runChaos(target: Target): Promise<ChaosReport> {
   const targetLabel = describeTarget(target);
 
   if (target.kind === "http") {
@@ -265,9 +232,7 @@ async function runChaos(
   }
 }
 
-async function runLegacyScan(
-  target: Target,
-): Promise<CheckResult[]> {
+async function runLegacyScan(target: Target): Promise<CheckResult[]> {
   const harness = new McpHarness(target);
 
   try {
@@ -297,9 +262,7 @@ async function runLegacyScan(
  * If the target is modern but doesn't support our preferred version:
  *   report the mismatch without incorrectly falling back to legacy.
  */
-async function scan(
-  target: Target,
-): Promise<ScanReport> {
+async function scan(target: Target): Promise<ScanReport> {
   const targetLabel = describeTarget(target);
 
   const probeClient = new RawJsonRpcClient(target);
@@ -309,10 +272,7 @@ async function scan(
   let probe;
 
   try {
-    probe = await probeServerEra(
-      probeClient,
-      PREFERRED_MODERN_VERSION,
-    );
+    probe = await probeServerEra(probeClient, PREFERRED_MODERN_VERSION);
   } catch (error) {
     await probeClient.close();
     throw error;
@@ -347,15 +307,9 @@ async function scan(
   }
 
   try {
-    const negotiatedVersion = negotiateVersion(
-      probe.supportedVersions,
-    );
+    const negotiatedVersion = negotiateVersion(probe.supportedVersions);
 
-    const results = await runModernChecks(
-      probeClient,
-      probe.discoverResult,
-      negotiatedVersion,
-    );
+    const results = await runModernChecks(probeClient, probe.discoverResult, negotiatedVersion);
 
     return {
       target: targetLabel,
@@ -369,9 +323,7 @@ async function scan(
 
 type OutputFormat = "human" | "json";
 
-function parseFormat(
-  raw: string,
-): OutputFormat | null {
+function parseFormat(raw: string): OutputFormat | null {
   if (raw === "human" || raw === "json") {
     return raw;
   }
@@ -393,20 +345,14 @@ async function runCommand<Report>(
   rawFormat: string,
   target: Target,
   execute: (target: Target) => Promise<Report>,
-  print: Record<
-    OutputFormat,
-    (report: Report) => void
-  >,
+  print: Record<OutputFormat, (report: Report) => void>,
   exitCodeFor: (report: Report) => number,
   failureLabel: string,
 ): Promise<void> {
   const format = parseFormat(rawFormat);
 
   if (!format) {
-    console.error(
-      `Unknown --format '${rawFormat}': ` +
-        `expected 'human' or 'json'.`,
-    );
+    console.error(`Unknown --format '${rawFormat}': ` + `expected 'human' or 'json'.`);
 
     process.exitCode = 2;
     return;
@@ -421,11 +367,7 @@ async function runCommand<Report>(
   } catch (error) {
     const message =
       `Crucible could not complete the ${failureLabel}: ` +
-      `${
-        error instanceof Error
-          ? error.message
-          : String(error)
-      }`;
+      `${error instanceof Error ? error.message : String(error)}`;
 
     if (format === "json") {
       console.log(
@@ -450,9 +392,7 @@ const program = new Command();
 
 program
   .name("crucible")
-  .description(
-    "Conformance and resilience testing harness for the Model Context Protocol.",
-  )
+  .description("Conformance and resilience testing harness for the Model Context Protocol.")
   .version("0.1.5");
 
 program
@@ -463,40 +403,26 @@ program
       "initialize-based protocol or the draft 2026-07-28 " +
       "stateless/discover-based one, and runs the matching check family.",
   )
-  .option(
-    "--format <type>",
-    "output format: 'human' or 'json'",
-    "human",
-  )
+  .option("--format <type>", "output format: 'human' or 'json'", "human")
   .argument(
     "<command...>",
     "a command that launches the target server over stdio " +
       "(e.g. `node server.js`), or a single MCP endpoint URL " +
       "(e.g. `http://localhost:8080/mcp`)",
   )
-  .action(
-    (
-      commandParts: string[],
-      options: { format: string },
-    ) => {
-      return runCommand(
-        options.format,
-        parseTarget(commandParts),
-        scan,
-        {
-          human: printHumanReport,
-          json: printJsonReport,
-        },
-        (report) =>
-          report.results.some(
-            (result) => result.status === "fail",
-          )
-            ? 1
-            : 0,
-        "scan",
-      );
-    },
-  );
+  .action((commandParts: string[], options: { format: string }) => {
+    return runCommand(
+      options.format,
+      parseTarget(commandParts),
+      scan,
+      {
+        human: printHumanReport,
+        json: printJsonReport,
+      },
+      (report) => (report.results.some((result) => result.status === "fail") ? 1 : 0),
+      "scan",
+    );
+  });
 
 program
   .command("chaos")
@@ -506,39 +432,23 @@ program
       "and score how gracefully it degrades: resilient, degraded, " +
       "hung, or crashed. Stdio targets only for now.",
   )
-  .option(
-    "--format <type>",
-    "output format: 'human' or 'json'",
-    "human",
-  )
+  .option("--format <type>", "output format: 'human' or 'json'", "human")
   .argument(
     "<command...>",
-    "the command that launches the target server over stdio, " +
-      "e.g. `node server.js`",
+    "the command that launches the target server over stdio, " + "e.g. `node server.js`",
   )
-  .action(
-    (
-      commandParts: string[],
-      options: { format: string },
-    ) => {
-      return runCommand(
-        options.format,
-        parseTarget(commandParts),
-        runChaos,
-        {
-          human: printChaosHumanReport,
-          json: printChaosJsonReport,
-        },
-        (report) =>
-          report.results.some(
-            (result) =>
-              result.verdict !== "resilient",
-          )
-            ? 1
-            : 0,
-        "chaos run",
-      );
-    },
-  );
+  .action((commandParts: string[], options: { format: string }) => {
+    return runCommand(
+      options.format,
+      parseTarget(commandParts),
+      runChaos,
+      {
+        human: printChaosHumanReport,
+        json: printChaosJsonReport,
+      },
+      (report) => (report.results.some((result) => result.verdict !== "resilient") ? 1 : 0),
+      "chaos run",
+    );
+  });
 
 await program.parseAsync(process.argv);

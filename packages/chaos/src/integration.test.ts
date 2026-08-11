@@ -16,7 +16,9 @@ async function runChaosAgainst(breakMode?: string): Promise<ChaosResult[]> {
     args: [statelessServerEntry],
     env: breakMode ? { CRUCIBLE_BREAK: breakMode } : undefined,
   });
+
   await client.connect();
+
   try {
     return await runChaosScenarios(client);
   } finally {
@@ -26,6 +28,7 @@ async function runChaosAgainst(breakMode?: string): Promise<ChaosResult[]> {
 
 test("both scenarios report 'resilient' against the well-behaved stateless fixture", async () => {
   const results = await runChaosAgainst();
+
   for (const r of results) {
     assert.equal(
       r.verdict,
@@ -33,31 +36,46 @@ test("both scenarios report 'resilient' against the well-behaved stateless fixtu
       `expected ${r.id} to be resilient, got ${r.verdict}: ${r.message}`,
     );
   }
+
   assert.equal(results.length, 2);
 });
 
 test("CRUCIBLE_BREAK=crash-on-malformed is reported as 'crashed', without affecting the unrelated break mode", async () => {
   const results = await runChaosAgainst("crash-on-malformed");
+
   const malformed = results.find((r) => r.id === "malformed-json-resilience");
+
   assert.equal(malformed?.verdict, "crashed");
 });
 
 test("CRUCIBLE_BREAK=hang-on-unknown-method is reported as 'degraded', not 'hung'", async () => {
   const results = await runChaosAgainst("hang-on-unknown-method");
+
   const malformed = results.find((r) => r.id === "malformed-json-resilience");
+
   const unknownMethod = results.find((r) => r.id === "unknown-method-resilience");
 
-  // This is "degraded", specifically NOT "hung": the server ignores this one
-  // bad request but is still perfectly responsive to everything else,
-  // including the malformed-JSON scenario that runs right after it in the
-  // same suite. "hung" is reserved for when the *whole process* stops
-  // responding to anything - see the freeze-on-unknown-method test below.
   assert.equal(unknownMethod?.verdict, "degraded");
   assert.equal(malformed?.verdict, "resilient");
 });
 
 test("CRUCIBLE_BREAK=freeze-on-unknown-method is reported as 'hung'", async () => {
-  const results = await runChaosAgainst("freeze-on-unknown-method");
-  const unknownMethod = results.find((r) => r.id === "unknown-method-resilience");
-  assert.equal(unknownMethod?.verdict, "hung");
+  const client = new RawJsonRpcClient({
+    kind: "stdio",
+    command: "node",
+    args: [statelessServerEntry],
+    env: { CRUCIBLE_BREAK: "freeze-on-unknown-method" },
+  });
+
+  await client.connect();
+
+  try {
+    const results = await runChaosScenarios(client);
+
+    const unknownMethod = results.find((r) => r.id === "unknown-method-resilience");
+
+    assert.equal(unknownMethod?.verdict, "hung");
+  } finally {
+    await client.close();
+  }
 });
