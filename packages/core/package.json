@@ -3,29 +3,22 @@
   "version": "0.1.0",
   "description": "Low-level MCP connection harness used by Crucible's conformance and chaos engines.",
   "type": "module",
-
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-
   "files": [
     "dist"
   ],
-
   "publishConfig": {
     "access": "public"
   },
-
   "repository": {
     "type": "git",
     "url": "https://github.com/kogtug/Crucible.git"
   },
-
   "license": "MIT",
-
   "scripts": {
     "build": "tsc -b"
   },
-
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
     "zod": "^3.25.0"
